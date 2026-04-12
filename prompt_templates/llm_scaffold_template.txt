@@ -1,0 +1,139 @@
+Purpose: Use this template to produce a single, self-contained prompt for an LLM IDE (Copilot / GitHub Copilot / GPT IDE) that can scaffold, implement, and iterate on a web application similar to the Menu_Maker_App. Fill the placeholders ({{...}}) with project-specific values and paste the filled prompt into the LLM IDE.
+
+How to use: Replace every {{PLACEHOLDER}} with your project-specific text. If you have file excerpts or example data, include them where indicated. Then copy the complete filled prompt into your LLM IDE and request a stepwise generation (scaffold → implement → tests → run). Ask the LLM to output a commit-friendly patch or code files.
+
+---
+
+TEMPLATE
+
+Project Summary:
+- Name: Menu_Maker
+- Short Description: Web application designed to let an individual parse a list of recipes and create a weekly menu and shopping list.
+- Primary Goal: Expedite household grocery planning
+
+Audience & Constraints:
+- Users: People interested in reducing the time it takes to prepare weekly groceries.
+- Platform: Web
+- Tech Stack Required: Python, Flask
+- License / Safety Constraints: N/A
+
+High-Level Requirements:
+- Core features:
+  - Scraping: fetch recipes, extract ingredient lists and nutrition.
+  - Normalization: canonicalize ingredient strings for aggregation.
+  - Menu calculation: pick balanced menus using nutrition constraints.
+  - Shopping list: aggregate canonical ingredients across kept recipes.
+  - UI: show menu, recipe view, nutrition, saved/kept recipes, shopping list.
+- Nonfunctional: tests, reproducible builds, clear logging, safe scraping (respect robots and rate limits).
+
+Data Model / Inputs:
+- Recipe record fields: `title`, `url`, `source`, `rating`, `reviewCount`, `nutrition` (dict), `ingredients` (JSON list), `ingredients_normalized` (JSON list), `ingredients_canonical` (JSON list), `category`, `calories`, `carbs`, `protein`, `fat`
+- Storage format: csv
+- Example payload: include 1–3 representative recipe JSONs or a `recipes_with_ingredients.csv` excerpt if available.
+
+Normalization & Canonicalization Rules (explicit):
+- Quantity prefix rule: preserve leading qty/unit as prefix (e.g., "1 cup").
+- Remove artifacts: strip bullets, checkboxes, social text, instructions, temperatures, and long prose.
+- Parentheticals: remove parenthetical weights/notes.
+- Prep words: strip verbs/adjectives (chopped, minced, diced, peeled, etc.).
+- Repeat-collapse: remove adjacent duplicated n-grams (configurable max_ngram).
+- Fraction normalization: map common unicode fractions to ASCII (¼ → 1/4, etc.).
+- Unit normalization: normalize `tbsp` → `tablespoon`, `tsp` → `teaspoon`, singularize common units.
+- Canonical mapping: small synonym map for common phrases (olive oil → olive oil, flour → flour, etc.).
+- Heuristics to drop lines: instruction or usage prose detected via token + pronoun rules.
+- Priority: conservative cleaning first (backups) — do not drop valid items unless high confidence.
+
+API & Routes:
+- `GET /` → index with summary and links.
+- `GET /menu` → current menu (calories/macros, 4 recipes).
+- `POST /menu/calc` → recalc menu (returns JSON).
+- `GET /recipe/<id>` → recipe detail view (ingredients + normalized/canonical).
+- `GET /shopping` → aggregated shopping list across kept recipes (JSON + UI).
+- `GET /saved` → show saved recipes/menus.
+- `POST /recipes/import` → (dev) import/update `recipes.csv` or upload file.
+
+Important Files & Structure (expected from LLM):
+- `run.py` or `wsgi.py` - app entry.
+- `app/__init__.py` - Flask app factory and config.
+- `app/config.py` - settings (data path, debug, allowed hosts).
+- `app/utils/shopping.py` - normalization & canonicalization logic.
+- `app/recipe_scraper/` - spiders or scrapers (optional).
+- `app/templates/` - `index.html`, `menu.html`, `recipe.html`, `nutrition.html`, `saved.html`.
+- `app/static/` - CSS/JS assets.
+- `requirements.txt` - pinned dependencies.
+- `tests/` - unit tests for normalization and aggregator.
+
+Dev Workflow & Tasks for LLM (explicit stepwise instructions for the LLM):
+1. Scaffold project files and minimal Flask app with routes above.
+2. Implement `normalize_ingredient()` and `canonicalize_ingredient()` functions following the rules above (include unit tests).
+3. Add a script to recompute `ingredients_normalized` and `ingredients_canonical` across the dataset and create timestamped backups.
+4. Implement shopping list aggregation using canonical keys.
+5. Add minimal Jinja templates (Bootstrap-based) with UI for menu/recipe/shopping.
+6. Add tests (pytest) for: fraction mapping, bullet stripping, repeat-collapse, sample recipe normalization, and shopping aggregation.
+7. Provide a README with setup and run instructions.
+8. Provide a sample run (commands) and describe how to iterate (change rules, add synonyms).
+
+Testing & Acceptance Criteria (tell LLM exactly what to assert):
+- Normalizer tests: list of input → expected normalized strings (include edge cases: bullets, repeated n-grams, unicode fractions, "I use skim milk...").
+- Canonical tests: normalized → expected canonical keys for top N examples.
+- Recompute script: creates a backup file and updates `ingredients_normalized` and `ingredients_canonical` columns.
+- Integration: aggregate shopping list counts match expected counts for a small toy dataset.
+- UI: pages render without server error; sample recipe displays normalized and canonical lists.
+
+Style / Lint / Formatting:
+- Use `black` formatting, `flake8` linting, `isort` imports.
+- Type hints for public functions where practical.
+- Docstrings for `normalize_ingredient` and `canonicalize_ingredient` with examples.
+
+Security & Scraping Guidance:
+- Respect robots.txt and rate limits; backoff on errors.
+- Sanitize scraped strings before parsing.
+- Avoid storing PII.
+- If including login/auth, use secure hashing and environment-controlled secrets.
+
+Security note (important):
+- Developer-only endpoints that perform data mutations or execute scripts (e.g. `POST /recipes/import`) must be disabled in production by default. Ensure the app config includes a boolean flag `ALLOW_DEV_IMPORT` defaulting to `False` and require an explicit developer action to enable it in non-production environments.
+
+Deliverables expected from LLM:
+- File-by-file patch (or zipped file) containing the app scaffold.
+- Unit tests and a test runner command.
+- `README.md` with setup and run instructions.
+- A short change log describing normalization heuristics implemented.
+- A top-N canonical frequency report script (to identify synonyms to add).
+
+Prompting / Iteration Instructions for the LLM IDE (how to ask it to produce the work):
+- "Step 1: Scaffold a minimal Flask app with routes listed and placeholders for normalization logic. Output files as a git-style patch."
+- "Step 2: Implement normalization functions and unit tests for the cases in the 'Testing' section. Run tests locally (show commands and test output)."
+- "Step 3: Implement recompute script that backups CSV and rewrites canonical columns. Show sample run on provided CSV snippet (or small toy data if dataset too big)."
+- "Step 4: Implement UI templates and show screenshots or textual render of pages."
+- "Always: create a backup before modifying data files; prefer small, verifiable commits and include tests for each change."
+
+Example Few-Shot Cases (include these in the filled prompt):
+- Input: "4 ▢ 4 fillets tilapia" → Normalized: "4 fillets tilapia"
+- Input: "1 1/2 cup 1 1/2 cups arborio rice" → Normalized: "1 1/2 cup arborio rice" → Canonical "1 1/2 cup arborio rice"
+- Input: "I use skim milk but you can use whole milk" → Normalized: "" (dropped)
+- Input: "1/2 cup 1/2 cup sugar" → Normalized: "1/2 cup sugar"
+- Input: "1 � cups arborio rice" → Normalized: "1/2 cup arborio rice" (after fraction normalization)
+
+Evaluation Rubric to Return:
+- Correctness: normalization tests pass (80%+ for a varied sample).
+- Safety: no scraped PII; robots respected.
+- Robustness: recompute script backs up and recovers.
+- UX: pages render and show canonical names.
+
+Final instructions to the LLM when generating code:
+- Provide a `migration`/`backup` step before any destructive operation.
+- Keep normalization logic readable and well-documented; provide a short guide on how to add synonyms.
+- When uncertain about ambiguous input, ask the developer (do not make irreversible destructive changes by default).
+
+---
+
+Usage example wrapper to paste into an LLM IDE (replace placeholders and append examples / dataset excerpt):
+
+PROJECT: Name: Menu_Maker - Short Description: Web application designed to let an individual parse a list of recipes and create a weekly menu and shopping list.
+
+TASK: Create a Flask web app implementing the features, normalization and tests specified below. Use this exact file structure and tests. Respect backup-first policy when modifying datasets.
+
+[Insert the filled sections: Data Model, Normalization rules, Example inputs, Routes, Files to create, Acceptance tests]
+
+Start by scaffolding the project and outputting a git-style patch. Then implement normalization and tests. Run tests and report results. If any ambiguity arises, ask a targeted question to the user.

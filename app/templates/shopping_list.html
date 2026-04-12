@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Shopping List</h2>
+  <p>The aggregated ingredients below are collected from recipes you've marked as <strong>Keep</strong>.</p>
+
+  <h4>Aggregated</h4>
+  {% if aggregated %}
+  <ul>
+    {% for item, count in aggregated.items() %}
+      <li>{{ item }} {% if count > 1 %} (used in {{ count }} recipes){% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>No ingredients found.</p>
+  {% endif %}
+
+  <h4>Per Recipe</h4>
+  {% for r in per_recipe %}
+    <div class="card mb-2">
+      <div class="card-body">
+        <h5 class="card-title">{{ r.title }}</h5>
+        {% if r.ingredients and r.ingredients|length > 0 %}
+          <ul>
+            {% for i in r.ingredients %}
+              <li>{{ i }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p><em>No ingredients found for this recipe.</em></p>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <a class="btn btn-secondary" href="{{ url_for('menu.menu') }}">Back to Menu</a>
+</div>
+{% endblock %}

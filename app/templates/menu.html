@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Menu Maker - Menu Maker App{% endblock %}
+
+{% block content %}
+  <style>
+    /* page-specific overrides kept here for now */
+    h2 { color: #d35400; text-align:center; }
+    h3 { color: #27ae60; text-align:center; }
+    .title-btn{background:none;border:none;color:#2980b9;cursor:pointer;padding:0;font-weight:600}
+    .keep-btn{background:none;border:none;color:inherit;cursor:pointer;font-weight:bold}
+    .nutrition-popup{min-width:180px}
+  </style>
+
+  <div class="text-center mb-3">
+    <h2>Menu Maker</h2>
+    <form method="post" class="d-inline-block">
+      <button type="submit" class="btn btn-accent">Create Menu</button>
+    </form>
+    <a href="{{ url_for('menu.shopping_list') }}" class="btn btn-outline-primary ms-2">Create Shopping List (Kept Recipes)</a>
+    <div class="mt-2"><a class="btn btn-link" href="/">Back to Home</a></div>
+  </div>
+
+  {% if menu_recipes is not none %}
+    <h3 class="mb-3">Recipes in Your Menu</h3>
+    <div class="table-responsive card-soft mb-3">
+      <table class="table menu-table mb-0">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Keep</th>
+            <th>Url</th>
+            <th>Nutrition</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for recipe in menu_recipes %}
+          <tr>
+            <td>
+              <button class="title-btn" data-title="{{ recipe.title }}">{{ recipe.title }}</button>
+            </td>
+            <td>
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="toggle_keep" value="{{ recipe.title }}">
+                <button type="submit" class="keep-btn">{{ 'Yes' if recipe.keep else 'No' }}</button>
+              </form>
+            </td>
+            <td><a href="{{ recipe.url }}" target="_blank">Link</a></td>
+            <td>
+              <span class="nutrition-tooltip">
+                <span class="info-icon">&#9432;</span>
+                <span class="nutrition-popup card-soft">
+                  <table class="nutrition-table table table-sm mb-0">
+                    <tr><th>Calories</th><td class="text-end">{{ recipe.nutrition.Calories }}</td></tr>
+                    <tr><th>Carbs</th><td class="text-end">{{ recipe.nutrition.Carbs }}</td></tr>
+                    <tr><th>Fat</th><td class="text-end">{{ recipe.nutrition.Fat }}</td></tr>
+                    <tr><th>Protein</th><td class="text-end">{{ recipe.nutrition.Protein }}</td></tr>
+                  </table>
+                </span>
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <!-- Replacement modal -->
+  <div id="replaceModal" class="d-none" style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;z-index:50;">
+    <div class="card-soft mx-auto" style="max-width:640px;width:92%;">
+      <h3 class="h6 text-center">Choose replacement for <span id="origTitle"></span></h3>
+      <div class="mb-2">
+        <input id="titleSearch" placeholder="Search recipes..." class="form-control" />
+      </div>
+      <div style="max-height:260px;overflow:auto;border:1px solid #e6e6e6;padding:6px;border-radius:6px;">
+        <ul id="titleList" class="list-unstyled mb-0">
+          {% for t in all_titles %}
+            <li class="py-1 border-bottom"><button class="choose-replace btn btn-link p-0 text-start" data-title="{{ t }}">{{ t }}</button></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="text-end mt-2"><button id="closeModal" class="btn btn-sm btn-secondary">Cancel</button></div>
+    </div>
+  </div>
+
+  <form id="replaceForm" method="post" action="{{ url_for('menu.replace') }}" style="display:none;">
+    <input type="hidden" name="original_title" id="formOriginal">
+    <input type="hidden" name="new_title" id="formNew">
+  </form>
+
+  {% if nutrition_totals %}
+    <div class="nutrition-summary mx-auto" style="max-width:700px;margin-top:16px;">
+      <h3 class="h6 text-center mb-2">Nutrition Summary</h3>
+      <div class="d-flex justify-content-around flex-wrap small">
+        <div class="text-center p-2"><strong>Calories</strong><div>{{ nutrition_totals.Calories | round(0) }}</div></div>
+        <div class="text-center p-2"><strong>Carbs (g)</strong><div>{{ nutrition_totals.Carbs | round(1) }}</div></div>
+        <div class="text-center p-2"><strong>Fat (g)</strong><div>{{ nutrition_totals.Fat | round(1) }}</div></div>
+        <div class="text-center p-2"><strong>Protein (g)</strong><div>{{ nutrition_totals.Protein | round(1) }}</div></div>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const modal = document.getElementById('replaceModal');
+    const origSpan = document.getElementById('origTitle');
+    const formOriginal = document.getElementById('formOriginal');
+    const formNew = document.getElementById('formNew');
+    const replaceForm = document.getElementById('replaceForm');
+
+    document.querySelectorAll('.title-btn').forEach(btn => {
+      btn.addEventListener('click', function(e){
+        const title = this.getAttribute('data-title');
+        origSpan.textContent = title;
+        formOriginal.value = title;
+        modal.classList.remove('d-none');
+        modal.style.display = 'flex';
+      });
+    });
+
+    const titleSearch = document.getElementById('titleSearch');
+
+    document.getElementById('closeModal').addEventListener('click', function(){
+      modal.classList.add('d-none');
+      modal.style.display = 'none';
+    });
+
+    // choose replacement
+    document.querySelectorAll('.choose-replace').forEach(btn => {
+      btn.addEventListener('click', function(){
+        const newTitle = this.getAttribute('data-title');
+        formNew.value = newTitle;
+        replaceForm.submit();
+      });
+    });
+
+    // search/filter: treat input as space-separated keywords (all must match, any order)
+    titleSearch && titleSearch.addEventListener('input', function(){
+      const raw = this.value.toLowerCase().trim();
+      const tokens = raw.split(/\s+/).filter(t => t.length > 0);
+      document.querySelectorAll('#titleList li').forEach(li => {
+        const txt = li.textContent.toLowerCase();
+        const matches = tokens.every(tok => txt.indexOf(tok) !== -1);
+        // if no tokens (empty search) show all
+        li.style.display = tokens.length === 0 || matches ? '' : 'none';
+      });
+    });
+
+    // Nutrition popup: position fixed so it isn't clipped by table/container overflow.
+    document.querySelectorAll('.nutrition-tooltip').forEach(wrapper => {
+      const icon = wrapper.querySelector('.info-icon');
+      const popup = wrapper.querySelector('.nutrition-popup');
+      if (!icon || !popup) return;
+
+      // ensure popup hidden initially and use fixed positioning
+      popup.style.display = 'none';
+      popup.style.position = 'fixed';
+      popup.style.zIndex = '2000';
+
+      let hideTimer = null;
+
+      function showPopup(){
+        // make visible to compute size
+        popup.style.display = 'block';
+        popup.style.left = '0px';
+        popup.style.top = '0px';
+
+        const iRect = icon.getBoundingClientRect();
+        const pRect = popup.getBoundingClientRect();
+
+        // prefer to place to the left, center vertically on icon
+        let left = Math.round(iRect.left - pRect.width - 8);
+        let top = Math.round(iRect.top + (iRect.height / 2) - (pRect.height / 2));
+
+        // if not enough space on left, place to the right
+        if (left < 8) {
+          left = Math.round(iRect.right + 8);
+        }
+
+        // clamp top to viewport
+        const vpH = window.innerHeight || document.documentElement.clientHeight;
+        if (top < 8) top = 8;
+        if (top + pRect.height > vpH - 8) top = Math.max(8, vpH - pRect.height - 8);
+
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+      }
+
+      function hidePopup(){
+        // small delay to allow moving between icon and popup without flicker
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(()=>{ popup.style.display = 'none'; }, 150);
+      }
+
+      icon.addEventListener('mouseenter', function(){ clearTimeout(hideTimer); showPopup(); });
+      icon.addEventListener('focus', function(){ clearTimeout(hideTimer); showPopup(); });
+      icon.addEventListener('mouseleave', function(e){
+        // if mouse moves into popup, keep shown
+        if (e.relatedTarget && popup.contains(e.relatedTarget)) return;
+        hidePopup();
+      });
+
+      popup.addEventListener('mouseenter', function(){ clearTimeout(hideTimer); showPopup(); });
+      popup.addEventListener('mouseleave', hidePopup);
+
+      // reposition on scroll/resize to keep aligned
+      window.addEventListener('scroll', function(){ if (popup.style.display !== 'none') showPopup(); }, true);
+      window.addEventListener('resize', function(){ if (popup.style.display !== 'none') showPopup(); });
+    });
+  });
+</script>
+{% endblock %}
+

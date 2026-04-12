@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Menu Maker{% endblock %}
+
+{% block content %}
+  <div class="text-center py-5">
+    <h1 class="display-5">Welcome to Menu Maker</h1>
+    <p class="lead">Quickly build menus, check nutrition, and save favorites.</p>
+    <div class="mt-4 d-flex justify-content-center gap-2 flex-wrap">
+      <a class="btn btn-primary btn-lg" href="/menu/?fresh=1">Open Menu Maker</a>
+      <a class="btn btn-outline-secondary btn-lg" href="/recipe/">Recipe Form</a>
+      <a class="btn btn-outline-secondary btn-lg" href="/nutrition/">Nutrition</a>
+      <a class="btn btn-outline-secondary btn-lg" href="/saved/">Saved Menus</a>
+    </div>
+  </div>
+{% endblock %}
