@@ -129,5 +129,12 @@ def block_recipe(title, recipe: pd.DataFrame, user_name='master'):
         tmp_df = pd.concat(objs=(tmp_df, recipe))
         tmp_df = tmp_df.drop_duplicates()
         tmp_df.to_csv(recipe_block_path, index=False)
+    except OSError:
+        # On read-only file systems (e.g., Vercel), skip writing
+        pass
     except:
-        recipe.to_csv(recipe_block_path, index=False)
+        try:
+            recipe.to_csv(recipe_block_path, index=False)
+        except OSError:
+            # On read-only file systems (e.g., Vercel), skip writing
+            pass
