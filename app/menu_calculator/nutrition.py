@@ -12,6 +12,32 @@ class Recipe:
         pass
 
     def add_to_my_recipes(self, df, user_name='master'):
+        # Try database first
+        try:
+            from app.database import get_database
+            db = get_database()
+            recipe_dict = df.to_dict('records')[0] if len(df) > 0 else {}
+            # Clean the dict
+            clean_dict = {
+                'title': recipe_dict.get('title'),
+                'category': recipe_dict.get('category'),
+                'calories': recipe_dict.get('calories'),
+                'carbs': recipe_dict.get('carbs'),
+                'protein': recipe_dict.get('protein'),
+                'fat': recipe_dict.get('fat'),
+                'rating': recipe_dict.get('rating'),
+                'review_count': recipe_dict.get('review_count') or recipe_dict.get('reviewCount'),
+                'source': recipe_dict.get('source', 'user'),
+                'url': recipe_dict.get('url'),
+                'nutrition': recipe_dict.get('nutrition'),
+                'submitted_by': user_name
+            }
+            if db.add_user_recipe(clean_dict):
+                return  # Success
+        except Exception as e:
+            print(f"Database not available for user recipe, falling back to CSV: {e}")
+
+        # Fallback to CSV
         for column in ['title', 'url', 'category', 'source',
                        'calories', 'carbs', 'fat', 'protein',
                        'rating', 'reviewCount']:
@@ -121,6 +147,33 @@ def clean_up_recipes(df):
     block_recipe('non-dinner recipes', blocked_df_2)
 
 def block_recipe(title, recipe: pd.DataFrame, user_name='master'):
+    # Try database first
+    try:
+        from app.database import get_database
+        db = get_database()
+        # Convert DataFrame to dict for insertion
+        for _, row in recipe.iterrows():
+            recipe_dict = row.to_dict()
+            # Remove any extra columns that might not be in the table
+            clean_dict = {
+                'title': recipe_dict.get('title'),
+                'category': recipe_dict.get('category'),
+                'calories': recipe_dict.get('calories'),
+                'carbs': recipe_dict.get('carbs'),
+                'protein': recipe_dict.get('protein'),
+                'fat': recipe_dict.get('fat'),
+                'rating': recipe_dict.get('rating'),
+                'review_count': recipe_dict.get('review_count') or recipe_dict.get('reviewCount'),
+                'source': recipe_dict.get('source'),
+                'url': recipe_dict.get('url'),
+                'nutrition': recipe_dict.get('nutrition')
+            }
+            db.add_blocked_recipe(clean_dict)
+        return  # Success, no need for CSV fallback
+    except Exception as e:
+        print(f"Database not available for blocking, falling back to CSV: {e}")
+
+    # Fallback to CSV
     script_dir = os.path.dirname(__file__)
     recipe_block_path = os.path.join(script_dir,
                                      '../recipe_scraper/recipe_scraper/spiders/master_blocked_recipes.csv')

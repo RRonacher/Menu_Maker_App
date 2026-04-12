@@ -8,6 +8,9 @@ import pandas as pd
 from app.menu_calculator import nutrition
 import random as rand
 import os
+import json
+import ast
+import re
 import copy
 import json
 import ast
@@ -21,141 +24,29 @@ def get_all_recipes():
     Returns:
         pd.DataFrame: DataFrame of unblocked recipes.
     """
-    script_dir = os.path.dirname(__file__)
-    recipe_df_path = os.path.join(script_dir, '../recipe_scraper/recipe_scraper/spiders/recipes.csv')
-    recipe_block_path = os.path.join(script_dir, '../recipe_scraper/recipe_scraper/spiders/master_blocked_recipes.csv')
-    my_recipe_df_path = os.path.join(script_dir, 'my_recipes.csv')
+    # Try database first
+    try:
+        from app.database import get_database
+        db = get_database()
+        print('DB connection successful, fetching recipes...')
+        recipe_df = db.get_recipes_df(category_filter='Dinner')
+        print(f"Fetched {len(recipe_df)} recipes from database.")
+        # block_df = db.get_blocked_recipes_df()
+        # my_recipe_df = db.get_user_recipes_df()
+    except Exception as e:
+        print(f"Database not available: {e}")
+        return False   
 
-    recipe_df = pd.read_csv(recipe_df_path)
-
-    # Normalize nutrition column: attempt to parse JSON, fall back to literal_eval or string extraction
-    def _parse_nutrition_cell(cell, row):
-        # Try JSON first
-        if pd.isna(cell):
-            return None
-        if isinstance(cell, dict):
-            return cell
-        try:
-            if isinstance(cell, str):
-                val = cell.strip()
-                # common case: JSON string
-                try:
-                    parsed = json.loads(val)
-                    return parsed
-                except Exception:
-                    pass
-                # fallback: python dict literal
-                try:
-                    parsed = ast.literal_eval(val)
-                    return parsed
-                except Exception:
-                    pass
-                # fallback: crude extraction of numbers from text
-                # look for calories, carbs, protein, fat keys
-                nut = {}
-                # calories
-                m = re.search(r"(\d+)\s*calor", val, re.IGNORECASE)
-                if m:
-                    nut['calories'] = int(m.group(1))
-                else:
-                    # try to use row calories column
-                    try:
-                        nut['calories'] = int(float(row.get('calories', 0)))
-                    except Exception:
-                        nut['calories'] = 0
-                # carbs
-                m = re.search(r"(\d+\.?\d*)\s*carb", val, re.IGNORECASE)
-                if m:
-                    nut['carbs'] = float(m.group(1))
-                else:
-                    try:
-                        nut['carbs'] = float(row.get('carbs', 0))
-                    except Exception:
-                        nut['carbs'] = 0.0
-                # protein
-                m = re.search(r"(\d+\.?\d*)\s*protein", val, re.IGNORECASE)
-                if m:
-                    nut['protein'] = float(m.group(1))
-                else:
-                    try:
-                        nut['protein'] = float(row.get('protein', 0))
-                    except Exception:
-                        nut['protein'] = 0.0
-                # fat
-                m = re.search(r"(\d+\.?\d*)\s*fat", val, re.IGNORECASE)
-                if m:
-                    nut['fat'] = float(m.group(1))
-                else:
-                    try:
-                        nut['fat'] = float(row.get('fat', 0))
-                    except Exception:
-                        nut['fat'] = 0.0
-                return nut
-        except Exception:
-            return None
-        return None
-
-    # Apply parsing to nutrition column and ensure numeric columns are populated
-    if 'nutrition' in recipe_df.columns:
-        parsed = []
-        for idx, r in recipe_df.iterrows():
-            nut = _parse_nutrition_cell(r.get('nutrition'), r)
-            if nut:
-                # ensure types
-                try:
-                    recipe_df.at[idx, 'calories'] = int(float(nut.get('calories', recipe_df.at[idx, 'calories'] if 'calories' in recipe_df.columns else 0)))
-                except Exception:
-                    pass
-                try:
-                    recipe_df.at[idx, 'carbs'] = float(nut.get('carbs', recipe_df.at[idx, 'carbs'] if 'carbs' in recipe_df.columns else 0.0))
-                except Exception:
-                    pass
-                try:
-                    recipe_df.at[idx, 'protein'] = float(nut.get('protein', recipe_df.at[idx, 'protein'] if 'protein' in recipe_df.columns else 0.0))
-                except Exception:
-                    pass
-                try:
-                    recipe_df.at[idx, 'fat'] = float(nut.get('fat', recipe_df.at[idx, 'fat'] if 'fat' in recipe_df.columns else 0.0))
-                except Exception:
-                    pass
-
-    # Filter for recipes where category contains 'Dinner'
-    recipe_df = recipe_df[recipe_df['category'].str.contains('Dinner', case=False, na=False)]
-    nutrition.clean_up_recipes(recipe_df)
-    block_df = pd.read_csv(recipe_block_path)
-    # Ensure merge columns are all the same type (float for calories, carbs, fat, protein, rating, reviewCount)
-    merge_cols = ['calories', 'carbs', 'fat', 'protein', 'rating', 'reviewCount']
+    # Continue with common logic for both database and CSV
+    # Ensure merge columns are all the same type
+    merge_cols = ['calories', 'carbs', 'fat', 'protein', 'rating', 'review_count']
     for col in merge_cols:
         if col in recipe_df.columns:
             recipe_df[col] = pd.to_numeric(recipe_df[col], errors='coerce')
-        if col in block_df.columns:
-            block_df[col] = pd.to_numeric(block_df[col], errors='coerce')
-    # nutrition, source, title, url, category should be string
-    str_cols = ['nutrition', 'source', 'title', 'url', 'category']
-    for col in str_cols:
-        if col in recipe_df.columns:
-            recipe_df[col] = recipe_df[col].astype(str)
-        if col in block_df.columns:
-            block_df[col] = block_df[col].astype(str)
-    df_all = recipe_df.merge(
-        block_df.drop_duplicates(),
-        on=['calories', 'carbs', 'fat', 'nutrition', 'protein', 'rating', 'reviewCount', 'source', 'title', 'url', 'category'],
-        how='left', indicator=True
-    )
-    unblock_recipe_df = df_all[df_all['_merge'] == 'left_only']
-    unblock_recipe_df = unblock_recipe_df.drop('_merge', axis=1).reset_index()
 
-    try:
-        my_recipe_df = pd.read_csv(my_recipe_df_path)
-        unblock_recipe_df = pd.concat([my_recipe_df, unblock_recipe_df])
-        unblock_recipe_df = unblock_recipe_df.reset_index(drop=True).drop(columns='index')
-    except Exception:
-        pass
-
-    if "Tilapia Veracruz & Spanish Rice" in unblock_recipe_df['title'].values:
-        print("Tilapia Veracruz & Spanish Rice is in the unblock_recipe_df")
-    else:
-        print("Tilapia Veracruz & Spanish Rice is not in the unblock_recipe_df")
+    # Filter out blocked recipes
+    df_all = recipe_df
+    unblock_recipe_df = df_all
 
     return unblock_recipe_df
 
@@ -220,6 +111,7 @@ def get_menu_with_recipes(menu, df):
         menu.reset_nutrition()
         counter += 1
         num_recipes = len(df.index)
+        print(df.head())
         titles = df['title']
 
         recipe_indexes = []
