@@ -82,9 +82,9 @@ class SupabaseDatabase:
             return False
 
     def add_user_recipe(self, recipe_data: Dict[str, Any]) -> bool:
-        """Add a user-submitted recipe."""
+        """Add a user-submitted recipe to the Recipes table."""
         try:
-            self.client.table('user_recipes').insert(recipe_data).execute()
+            self.client.table('Recipes').insert(recipe_data).execute()
             return True
         except Exception as e:
             print(f"Error adding user recipe: {e}")

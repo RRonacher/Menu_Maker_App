@@ -5,7 +5,7 @@
 {% block content %}
   <div class="card-soft mx-auto" style="max-width:760px;">
     <h2 class="h4">Recipe Form</h2>
-    <form method="post" class="mt-4">
+    <form method="post" class="mt-4" autocomplete="off">
       <div class="mb-3">
         <label for="title" class="form-label">Recipe Title*</label>
         <input type="text" class="form-control" id="title" name="title" required>
@@ -45,7 +45,7 @@
       </div>
       
       <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-primary">Submit Recipe</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit Recipe</button>
         <a href="/" class="btn btn-outline-secondary">Back to Home</a>
       </div>
     </form>
@@ -53,7 +53,14 @@
   
   <script>
       // Basic client-side validation
-    document.querySelector('form').addEventListener('submit', function(e) {
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    form.addEventListener('submit', function(e) {
+      // Disable submit button immediately to prevent double-submission
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      
       const intFields = ['calories'];
       const floatFields = ['carbs', 'protein', 'fat'];
       let valid = true;
@@ -88,7 +95,15 @@
         alert('Please enter a valid URL (e.g., www.example.com or https://example.com)');
       }
       
-      if (!valid) {
+      if (valid) {
+        // Clear the form after successful submission
+        setTimeout(() => {
+          form.reset();
+        }, 100);
+      } else {
+        // Re-enable button if validation fails
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Recipe';
         e.preventDefault();
       }
     });

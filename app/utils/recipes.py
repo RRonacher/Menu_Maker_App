@@ -2,15 +2,14 @@
 Recipe form utilities for Menu Maker App.
 """
 
-import pandas as pd
 from flask import request
-import os
-import json
+from app.utils.validation import MacroValidator
+from app.database import get_database
 
 def submit_recipe():
     """
-    Process and save a recipe submission from the form.
-    Format: calories,carbs,category,fat,nutrition,protein,rating,reviewCount,source,title,url
+    Process and save a recipe submission to Supabase.
+    
     Returns:
         bool: True if submission was successful, False otherwise
     """
@@ -22,47 +21,44 @@ def submit_recipe():
         protein = float(request.form.get('protein'))
         fat = float(request.form.get('fat'))
 
-        # Create nutrition dictionary (keep numeric types)
-        nutrition = {
-            'calories': calories,
-            'carbs': carbs,
-            'protein': protein,
-            'fat': fat
-        }
+        # Validate macros before proceeding
+        validation_result = MacroValidator.validate_macros(calories, protein, fat, carbs)
+        if not validation_result['valid']:
+            errors = MacroValidator.get_validation_errors(validation_result)
+            print(f"Validation failed: {errors}")
+            return False
 
-        # Format data in correct order with defaults
+        # Format data for Supabase insertion (matches actual Recipes table schema)
         recipe_data = {
             'calories': calories,
             'carbs': carbs,
             'category': 'Dinner',  # Default category
             'fat': fat,
-            'nutrition': json.dumps(nutrition),  # Store as JSON string
             'protein': protein,
-            'rating': 0.1,  # Default rating
-            'reviewCount': 0.1,  # Default review count
             'source': request.form.get('source'),
             'title': request.form.get('title'),
-            'url': request.form.get('url')
+            'url': request.form.get('url'),
+            'is_submitted_recipe': 1  # Mark as user-submitted recipe
         }
 
         # Validate required fields
-        if not all(str(v).strip() for v in recipe_data.values()):
+        required = ['calories', 'carbs', 'fat', 'protein', 'source', 'title', 'url']
+        if not all(recipe_data.get(field) for field in required):
+            print("Missing required fields")
             return False
 
-        # Create a DataFrame row with correct column order
-        df_new = pd.DataFrame([recipe_data])
-
-        # Get path to recipes.csv
-        recipes_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                  'recipe_scraper', 'recipe_scraper', 'spiders', 'recipes.csv')
-
-        # Append to existing CSV or create new one
-        if os.path.exists(recipes_path):
-            df_new.to_csv(recipes_path, mode='a', header=False, index=False)
+        # Write to Supabase
+        db = get_database()
+        success = db.add_user_recipe(recipe_data)
+        
+        if success:
+            print(f"Recipe '{recipe_data['title']}' successfully saved to Supabase")
         else:
-            df_new.to_csv(recipes_path, index=False)
-
-        return True
-    except (ValueError, KeyError, OSError) as e:
+            print("Failed to save recipe to Supabase")
+        
+        return success
+        
+    except (ValueError, KeyError) as e:
         print(f"Error saving recipe: {str(e)}")  # For debugging
         return False
+

@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, flash, current_app, abort
+from flask import Blueprint, render_template, request, flash, current_app, abort, redirect, url_for
 from app.utils.recipes import submit_recipe
+from app.utils.validation import MacroValidator
 import subprocess
 import sys
 import os
@@ -13,29 +14,32 @@ def recipe():
         required_fields = ['title', 'url', 'source', 'calories', 'carbs', 'protein', 'fat']
         if not all(field in request.form for field in required_fields):
             flash('Please fill in all required fields.', 'error')
-            return render_template('recipe.html')
+            return redirect(url_for('recipe.recipe'))
+        
+        # Validate macro nutrients with comprehensive range checking
+        calories = request.form.get('calories')
+        protein = request.form.get('protein')
+        fat = request.form.get('fat')
+        carbs = request.form.get('carbs')
+        
+        validation_result = MacroValidator.validate_macros(calories, protein, fat, carbs)
+        if not validation_result['valid']:
+            errors = MacroValidator.get_validation_errors(validation_result)
+            for error in errors:
+                flash(error, 'error')
+            return redirect(url_for('recipe.recipe'))
             
         try:
-            # Try to convert numeric fields (calories must be integer)
-            calories_val = int(request.form.get('calories', 0))
-            if calories_val < 0:
-                flash('Calories cannot be negative.', 'error')
-                return render_template('recipe.html')
-
-            for field in ['carbs', 'protein', 'fat']:
-                value = float(request.form.get(field, 0))
-                if value < 0:
-                    flash(f'{field.title()} cannot be negative.', 'error')
-                    return render_template('recipe.html')
-
             success = submit_recipe()
             if success:
                 flash('Recipe successfully added to the database!', 'success')
-                return render_template('recipe.html')
             else:
                 flash('Failed to save recipe. Please try again.', 'error')
         except ValueError:
             flash('Please enter valid numbers for nutritional values.', 'error')
+        
+        # Redirect to GET to prevent form resubmission on refresh
+        return redirect(url_for('recipe.recipe'))
             
     return render_template('recipe.html')
 
