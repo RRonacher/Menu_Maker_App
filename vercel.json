@@ -1,0 +1,20 @@
+{
+  "builds": [
+    {
+      "src": "run.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "run.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron/url-health",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}

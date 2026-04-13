@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Health Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .summary { font-size: 1.1em; margin: 20px 0; }
+        .all-clear { color: green; font-weight: bold; }
+        .issues { color: red; font-weight: bold; }
+        .meta { color: #888; font-size: 0.9em; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #333; color: white; padding: 10px; text-align: left; }
+        td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        a { color: #0066cc; }
+    </style>
+</head>
+<body>
+    <h1>URL Health Report</h1>
+
+    {% if report %}
+        <p class="meta">Last run: {{ report['run_at'] }}</p>
+        <div class="summary">
+            <p>Recipes checked: <strong>{{ report['total_checked'] }}</strong></p>
+            {% if report['total_flagged'] > 0 %}
+                <p class="issues">⚠️ {{ report['total_flagged'] }} issue(s) found</p>
+            {% else %}
+                <p class="all-clear">✅ All URLs healthy</p>
+            {% endif %}
+        </div>
+
+        {% if report['flagged_urls'] %}
+        <table>
+            <thead>
+                <tr>
+                    <th>PK</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                    <th>URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in report['flagged_urls'] %}
+                <tr>
+                    <td>{{ item['pk'] }}</td>
+                    <td>{{ item['status'] or "N/A" }}</td>
+                    <td>{{ item['reason'] }}</td>
+                    <td><a href="{{ item['url'] }}" target="_blank">{{ item['url'] }}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+    {% else %}
+        <p>No health report has been run yet.</p>
+    {% endif %}
+</body>
+</html>

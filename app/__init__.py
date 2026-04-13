@@ -3,6 +3,7 @@ from app.menu.routes import menu_bp
 from app.recipe.routes import recipe_bp
 from app.nutrition.routes import nutrition_bp
 from app.saved.routes import saved_bp
+from app.cron.routes import cron_bp
 
 
 def create_app():
@@ -14,6 +15,7 @@ def create_app():
     app.register_blueprint(recipe_bp)
     app.register_blueprint(nutrition_bp)
     app.register_blueprint(saved_bp)
+    app.register_blueprint(cron_bp)
 
     @app.route('/')
     def index():

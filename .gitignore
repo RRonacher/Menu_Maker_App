@@ -314,3 +314,5 @@ __marimo__/
 /tests
 pytest.ini
 testing_plan.md
+
+roadmap.md
