@@ -13,7 +13,7 @@ Build the ingredient database and parsing workflow before adding grocery list en
 ## Data Model
 ### Recipe_Ingredients
 - `id` (PK)
-- `recipe_id` (FK -> Recipes.id)
+- `recipe_id` (FK -> Recipes.PK)
 - `raw_text` (text)
 - `canonical_text` (text)
 - `quantity` (text|null)
