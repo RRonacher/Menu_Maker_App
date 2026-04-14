@@ -24,6 +24,8 @@ Build the ingredient database and parsing workflow before adding grocery list en
 ### Recipes table flag (optional)
 - `ingredients_parsed` (boolean)
 
+> The SQL schema for this work is captured in `supabase_recipe_ingredient_schema.sql`.
+
 ## Parsing Workflow
 1. User submits a recipe URL and nutrition metadata
 2. Save the recipe record in `Recipes`
