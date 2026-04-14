@@ -8,39 +8,39 @@
     <form method="post" class="mt-4" autocomplete="off">
       <div class="mb-3">
         <label for="title" class="form-label">Recipe Title*</label>
-        <input type="text" class="form-control" id="title" name="title" required>
+        <input type="text" class="form-control" id="title" name="title" value="{{ form_data.title if form_data else '' }}" required>
       </div>
       
       <div class="mb-3">
         <label for="url" class="form-label">Recipe URL*</label>
-        <input type="url" class="form-control" id="url" name="url" required>
+        <input type="url" class="form-control" id="url" name="url" value="{{ form_data.url if form_data else '' }}" required>
       </div>
       
       <div class="mb-3">
         <label for="source" class="form-label">Source*</label>
-        <input type="text" class="form-control" id="source" name="source" required>
+        <input type="text" class="form-control" id="source" name="source" value="{{ form_data.source if form_data else '' }}" required>
       </div>
       
       <h6 class="text-muted mb-3">Nutritional Information (per serving)</h6>
       <div class="row g-3 mb-3">
         <div class="col-md-6 col-lg-3">
           <label for="calories" class="form-label">Calories*</label>
-          <input type="text" inputmode="numeric" class="form-control" id="calories" name="calories" pattern="[0-9]+" required>
+          <input type="text" inputmode="numeric" class="form-control" id="calories" name="calories" pattern="[0-9]+" value="{{ form_data.calories if form_data else '' }}" required>
         </div>
         
         <div class="col-md-6 col-lg-3">
           <label for="carbs" class="form-label">Carbs (g)*</label>
-          <input type="text" class="form-control" id="carbs" name="carbs" pattern="[0-9]*\.?[0-9]*" required>
+          <input type="text" class="form-control" id="carbs" name="carbs" pattern="[0-9]*\.?[0-9]*" value="{{ form_data.carbs if form_data else '' }}" required>
         </div>
         
         <div class="col-md-6 col-lg-3">
           <label for="protein" class="form-label">Protein (g)*</label>
-          <input type="text" class="form-control" id="protein" name="protein" pattern="[0-9]*\.?[0-9]*" required>
+          <input type="text" class="form-control" id="protein" name="protein" pattern="[0-9]*\.?[0-9]*" value="{{ form_data.protein if form_data else '' }}" required>
         </div>
         
         <div class="col-md-6 col-lg-3">
           <label for="fat" class="form-label">Fat (g)*</label>
-          <input type="text" class="form-control" id="fat" name="fat" pattern="[0-9]*\.?[0-9]*" required>
+          <input type="text" class="form-control" id="fat" name="fat" pattern="[0-9]*\.?[0-9]*" value="{{ form_data.fat if form_data else '' }}" required>
         </div>
       </div>
       

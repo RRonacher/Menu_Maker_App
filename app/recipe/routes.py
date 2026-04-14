@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, flash, current_app, abort, redirect, url_for
+from flask import Blueprint, render_template, request, flash, current_app, abort, redirect, url_for, session
 from app.utils.recipes import submit_recipe
 from app.utils.validation import MacroValidator
 import subprocess
 import sys
 import os
+import logging
 
 recipe_bp = Blueprint('recipe', __name__, url_prefix='/recipe')
 
@@ -14,6 +15,7 @@ def recipe():
         required_fields = ['title', 'url', 'source', 'calories', 'carbs', 'protein', 'fat']
         if not all(field in request.form for field in required_fields):
             flash('Please fill in all required fields.', 'error')
+            session['form_data'] = dict(request.form)
             return redirect(url_for('recipe.recipe'))
         
         # Validate macro nutrients with comprehensive range checking
@@ -27,6 +29,8 @@ def recipe():
             errors = MacroValidator.get_validation_errors(validation_result)
             for error in errors:
                 flash(error, 'error')
+            current_app.logger.warning(f"Recipe validation failed: {errors}")
+            session['form_data'] = dict(request.form)
             return redirect(url_for('recipe.recipe'))
             
         try:
@@ -37,11 +41,15 @@ def recipe():
                 flash('Failed to save recipe. Please try again.', 'error')
         except ValueError:
             flash('Please enter valid numbers for nutritional values.', 'error')
+            session['form_data'] = dict(request.form)
+            return redirect(url_for('recipe.recipe'))
         
         # Redirect to GET to prevent form resubmission on refresh
         return redirect(url_for('recipe.recipe'))
             
-    return render_template('recipe.html')
+    # GET request
+    form_data = session.pop('form_data', None)
+    return render_template('recipe.html', form_data=form_data)
 
 
 
