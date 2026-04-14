@@ -55,7 +55,7 @@ def submit_recipe():
             print("Failed to save recipe to Supabase")
             return False
 
-        recipe_id = recipe_record.get('id') or recipe_record.get('ID') or recipe_record.get('Id')
+        recipe_id = recipe_record.get('PK') or recipe_record.get('id') or recipe_record.get('ID') or recipe_record.get('Id')
         if recipe_id:
             ingredient_rows = shopping.parse_recipe_ingredients(recipe_data['url'])
             if ingredient_rows:
