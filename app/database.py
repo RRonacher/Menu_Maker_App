@@ -121,7 +121,7 @@ class SupabaseDatabase:
         if not recipe_id:
             return False
         try:
-            self.client.table('Recipes').update({'ingredients_parsed': parsed}).eq('id', recipe_id).execute()
+            self.client.table('Recipes').update({'ingredients_parsed': parsed}).eq('PK', recipe_id).execute()
             return True
         except Exception as e:
             print(f"Error updating recipe parse status: {e}")
