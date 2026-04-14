@@ -24,7 +24,23 @@ ALTER TABLE public."Recipes"
 -- 3. Optional: add an index for quick menu filtering.
 CREATE INDEX IF NOT EXISTS recipes_ingredients_parsed_idx ON public."Recipes" (ingredients_parsed);
 
--- 4. Enable Row-Level Security and create policies for Recipe_Ingredients.
+-- 4. Enable Row-Level Security and create policies for Recipes table.
+ALTER TABLE public."Recipes" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "Allow inserts for recipe submissions" ON public."Recipes"
+FOR INSERT
+WITH CHECK (true);
+
+CREATE POLICY IF NOT EXISTS "Allow updates for recipe parsing status" ON public."Recipes"
+FOR UPDATE
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY IF NOT EXISTS "Allow reads for all users" ON public."Recipes"
+FOR SELECT
+USING (true);
+
+-- 5. Enable Row-Level Security and create policies for Recipe_Ingredients.
 ALTER TABLE public."Recipe_Ingredients" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY IF NOT EXISTS "Allow inserts for ingredient submissions" ON public."Recipe_Ingredients"
