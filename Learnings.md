@@ -2,6 +2,18 @@
 
 ## Item 1.2: Recipe Data Validation
 
+### Validation Requirements (Updated)
+
+**Macro Calorie Consistency** (NEW):
+- Macros must add up to approximately the stated calories within ±5% tolerance
+- Calculation: expected_calories = (protein × 4) + (carbs × 4) + (fat × 9)
+- Example: A recipe claiming 100 calories but only having 1g each of protein/carbs/fat (17 calories) is invalid
+- This prevents data entry errors where users incorrectly estimate calorie counts
+
+**Why ±5%?**: Allows for natural variation in actual ingredient density and preparation, but catches gross errors (e.g., stating 100 cal when macros total 17 cal)
+
+---
+
 ### Issue 1: Supabase Row-Level Security (RLS) and Anon Role
 
 **Problem**: When submitting recipes using the anon key, we got error:

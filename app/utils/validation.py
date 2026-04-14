@@ -55,6 +55,7 @@ class MacroValidator:
             - 'protein': Tuple[bool, Optional[str]]
             - 'fat': Tuple[bool, Optional[str]]
             - 'carbs': Tuple[bool, Optional[str]]
+            - 'macro_consistency': Tuple[bool, Optional[str]]
         """
         result = {
             'valid': True,
@@ -62,6 +63,7 @@ class MacroValidator:
             'protein': MacroValidator._validate_protein(protein),
             'fat': MacroValidator._validate_fat(fat),
             'carbs': MacroValidator._validate_carbs(carbs),
+            'macro_consistency': MacroValidator._validate_macro_consistency(calories, protein, fat, carbs),
         }
         
         # Mark as invalid if any field failed
@@ -145,6 +147,54 @@ class MacroValidator:
             return False, "Carbs must be a valid number."
     
     @staticmethod
+    def _validate_macro_consistency(calories: Any, protein: Any, fat: Any, carbs: Any) -> Tuple[bool, Optional[str]]:
+        """
+        Validate that macros add up to approximately the stated calories.
+        
+        Calculation: expected_calories = (protein * 4) + (carbs * 4) + (fat * 9)
+        Tolerance: ±5% of stated calories
+        
+        Args:
+            calories: Stated calorie value
+            protein: Protein in grams
+            fat: Fat in grams
+            carbs: Carbs in grams
+        
+        Returns:
+            Tuple[bool, Optional[str]] (valid, error_msg)
+        """
+        try:
+            stated_cal = float(calories)
+            prot = float(protein)
+            fat_grams = float(fat)
+            carb_grams = float(carbs)
+            
+            # Calculate expected calories from macros
+            # Protein: 4 cal/g, Carbs: 4 cal/g, Fat: 9 cal/g
+            expected_cal = (prot * 4) + (carb_grams * 4) + (fat_grams * 9)
+            
+            # If stated calories is 0, can't calculate percentage difference
+            if stated_cal == 0:
+                return False, "Calories must be greater than 0."
+            
+            # Calculate percentage difference
+            percent_diff = abs(stated_cal - expected_cal) / stated_cal
+            
+            # Allow 5% tolerance
+            if percent_diff > 0.05:
+                msg = (
+                    f"Macros don't add up to stated calories. "
+                    f"Expected ~{int(expected_cal)} cal from macros, but {int(stated_cal)} stated. "
+                    f"Difference is {percent_diff*100:.1f}% (max 5% allowed)."
+                )
+                return False, msg
+            
+            return True, None
+        except (ValueError, TypeError):
+            # If we can't convert, let individual field validators handle it
+            return True, None
+    
+    @staticmethod
     def get_validation_errors(validation_result: Dict[str, Any]) -> List[str]:
         """
         Extract human-readable error messages from validation result.
@@ -156,7 +206,7 @@ class MacroValidator:
             List of error message strings (empty list if no errors)
         """
         errors = []
-        for field_name in ['calories', 'protein', 'fat', 'carbs']:
+        for field_name in ['calories', 'protein', 'fat', 'carbs', 'macro_consistency']:
             if field_name in validation_result:
                 is_valid, error_msg = validation_result[field_name]
                 if not is_valid and error_msg:
