@@ -46,6 +46,14 @@ def get_all_recipes():
 
     # Filter out blocked recipes
     df_all = recipe_df
+
+    # Exclude recipes that have not successfully parsed ingredients, if the schema contains that marker.
+    if 'ingredients_parsed' in df_all.columns:
+        try:
+            df_all = df_all[df_all['ingredients_parsed'] == True]
+        except Exception:
+            pass
+
     unblock_recipe_df = df_all
 
     return unblock_recipe_df

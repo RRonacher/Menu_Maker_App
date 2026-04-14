@@ -694,6 +694,32 @@ def normalize_ingredient_structured(text):
     }
 
 
+def build_ingredient_rows(raw_ingredients):
+    """Convert raw ingredient strings into normalized ingredient row dictionaries."""
+    rows = []
+    for raw_text in raw_ingredients or []:
+        if not raw_text or not isinstance(raw_text, str):
+            continue
+        parsed = normalize_ingredient_structured(raw_text)
+        if not parsed or not parsed.get('normalized'):
+            continue
+        rows.append({
+            'raw_text': raw_text.strip(),
+            'canonical_text': parsed.get('canonical', ''),
+            'quantity': parsed.get('quantity'),
+            'unit': parsed.get('unit'),
+            'quantity_metric': parsed.get('quantity_metric'),
+            'unit_metric': parsed.get('unit_metric')
+        })
+    return rows
+
+
+def parse_recipe_ingredients(url, timeout=10):
+    """Scrape and parse ingredients from a recipe URL."""
+    raw_ingredients = scrape_ingredients_from_url(url, timeout=timeout)
+    return build_ingredient_rows(raw_ingredients)
+
+
 def _extract_json_ld(soup):
     scripts = soup.find_all('script', type='application/ld+json')
     for s in scripts:

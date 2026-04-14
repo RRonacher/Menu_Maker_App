@@ -5,6 +5,7 @@ Recipe form utilities for Menu Maker App.
 from flask import request
 from app.utils.validation import MacroValidator
 from app.database import get_database
+from app.utils import shopping
 
 def submit_recipe():
     """
@@ -47,16 +48,29 @@ def submit_recipe():
             print("Missing required fields")
             return False
 
-        # Write to Supabase
+        # Write to Supabase and parse ingredients if the recipe is saved
         db = get_database()
-        success = db.add_user_recipe(recipe_data)
-        
-        if success:
-            print(f"Recipe '{recipe_data['title']}' successfully saved to Supabase")
-        else:
+        recipe_record = db.add_user_recipe(recipe_data)
+        if not recipe_record:
             print("Failed to save recipe to Supabase")
-        
-        return success
+            return False
+
+        recipe_id = recipe_record.get('id') or recipe_record.get('ID') or recipe_record.get('Id')
+        if recipe_id:
+            ingredient_rows = shopping.parse_recipe_ingredients(recipe_data['url'])
+            if ingredient_rows:
+                saved = db.add_recipe_ingredients(recipe_id, ingredient_rows)
+                if saved:
+                    db.mark_recipe_ingredients_parsed(recipe_id, True)
+                else:
+                    print(f"Failed to save ingredient rows for recipe {recipe_id}")
+            else:
+                print(f"No ingredients parsed for recipe {recipe_id}. Recipe will be saved but excluded from menu generation until parsing succeeds.")
+        else:
+            print("Warning: Recipe saved without returned ID; ingredient parsing was skipped.")
+
+        print(f"Recipe '{recipe_data['title']}' successfully saved to Supabase")
+        return True
         
     except (ValueError, KeyError) as e:
         print(f"Error saving recipe: {str(e)}")  # For debugging

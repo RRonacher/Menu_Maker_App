@@ -81,13 +81,50 @@ class SupabaseDatabase:
             print(f"Error adding blocked recipe: {e}")
             return False
 
-    def add_user_recipe(self, recipe_data: Dict[str, Any]) -> bool:
-        """Add a user-submitted recipe to the Recipes table."""
+    def add_user_recipe(self, recipe_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Add a user-submitted recipe to the Recipes table.
+
+        Returns the inserted row dict if successful, otherwise None.
+        """
         try:
-            self.client.table('Recipes').insert(recipe_data).execute()
-            return True
+            response = self.client.table('Recipes').insert(recipe_data).execute()
+            if hasattr(response, 'data') and isinstance(response.data, list) and response.data:
+                return response.data[0]
+            return None
         except Exception as e:
             print(f"Error adding user recipe: {e}")
+            return None
+
+    def add_recipe_ingredients(self, recipe_id: Any, ingredient_rows: List[Dict[str, Any]]) -> bool:
+        """Insert parsed ingredient rows for a recipe.
+
+        ingredient_rows should be a list of dicts with raw_text, canonical_text, and optional quantity/unit fields.
+        """
+        if not recipe_id or not ingredient_rows:
+            return False
+
+        rows = []
+        for row in ingredient_rows:
+            row_data = {'recipe_id': recipe_id}
+            row_data.update(row)
+            rows.append(row_data)
+
+        try:
+            self.client.table('Recipe_Ingredients').insert(rows).execute()
+            return True
+        except Exception as e:
+            print(f"Error adding recipe ingredients: {e}")
+            return False
+
+    def mark_recipe_ingredients_parsed(self, recipe_id: Any, parsed: bool = True) -> bool:
+        """Mark a recipe as having successful ingredient parsing."""
+        if not recipe_id:
+            return False
+        try:
+            self.client.table('Recipes').update({'ingredients_parsed': parsed}).eq('id', recipe_id).execute()
+            return True
+        except Exception as e:
+            print(f"Error updating recipe parse status: {e}")
             return False
 
     def bulk_insert_recipes(self, recipes_df: pd.DataFrame) -> bool:
