@@ -353,8 +353,6 @@ def normalize_ingredient(text):
     # accidentally treat them as part of the ingredient
     raw = re.sub(r"[\u25a2\u2022\u2023\u25aa\u25ab\u25cf\u2024\u25cb\u25e6\*\u25b6\u25ba\u25c6\u25c7]+", ' ', raw)
     raw = raw.strip()
-    # remove parenthetical content early (weights, notes, cooking tips)
-    raw = re.sub(r"\([^)]*\)", "", raw)
     # normalize replacement characters and unicode fraction glyphs early
     raw = _normalize_fractions(raw)
     # normalize unit abbreviations early
@@ -411,21 +409,12 @@ def normalize_ingredient(text):
 
     s = raw
 
-    # Pre-process to normalize whole-word units that might be confused with other words
-    # Convert "1 loaf/loaves" to "1 WHOLEBREAD_LOAF" so "l" isn't matched as liter unit
-    # (using WHOLEBREAD_ prefix ensures it won't match any unit abbreviations)
-    s = re.sub(r'\b(\d+)\s+(?:loaf|loaves)\b', r'\1 WHOLEBREAD_LOAF', s, flags=re.I)
-    
     # Convert compacted unit formats like '400g' or '1ml' to spaced form for consistent parsing
     # This helps catch entries where quantity and unit are written together without spaces
     s = re.sub(r'(\d+(?:\.\d+)?)(ml|kg|l)\b', r'\1 \2', s, flags=re.I)
     # Special case for 'g' (gram): only convert when followed by a space or end/punctuation, not a letter
     # This avoids converting 'garlic' -> 'gar lic'
     s = re.sub(r'(\d+(?:\.\d+)?)g\b(?![a-z])', r'\1 gram', s, flags=re.I)
-    
-    # Remove packaging words that appear between quantity and ingredient
-    # "100g bag X" -> "100g X", leave just the ingredient
-    s = re.sub(r'\s+(bag|container|pouch|box|carton|bottle)(?=\s|$)', '', s, flags=re.I)
 
     # Try to capture a leading quantity + optional unit (keep as prefix)
     # Avoid matching single 'g' from 'garlic', 'ginger', etc. But do match if followed by non-letter or at end
@@ -445,9 +434,6 @@ def normalize_ingredient(text):
             unit_norm = _UNIT_SINGULAR.get(unit.lower(), unit)
         except Exception:
             unit_norm = unit
-        # handle special preprocessing: convert "LOAF_UNIT" back to "loaf" 
-        if unit_norm and 'LOAF_UNIT' in unit_norm.upper():
-            unit_norm = unit_norm.replace('LOAF_UNIT', 'loaf').replace('loaf_unit', 'loaf')
         prefix = (qty + ' ' + unit_norm).strip()
         s = rest.strip()
         # also normalize the remainder to convert compacted units like '400g' -> '400 gram'
@@ -499,9 +485,8 @@ def normalize_ingredient(text):
                     pq = re.escape(prefix)
                     s = re.sub(rf"^\s*{pq}\b", '', s, flags=re.I).strip()
 
-    # parenthetical content already removed early in processing
-    # remove packaging descriptors (bag, container, pouch, etc)
-    s = re.sub(r"\b(bag|container|pouch|box|carton|bottle)\b", '', s, flags=re.I)
+    # remove parenthetical content (weights, notes)
+    s = re.sub(r"\([^)]*\)", "", s)
     # cut off after comma, dash, em-dash — often preparation follows
     s = re.split(r"[,-\u2013\u2014]", s)[0]
     # cut off at ' with ' to avoid inline accompaniments
