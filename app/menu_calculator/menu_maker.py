@@ -43,16 +43,16 @@ def get_all_recipes():
     for col in merge_cols:
         if col in recipe_df.columns:
             recipe_df[col] = pd.to_numeric(recipe_df[col], errors='coerce')
-
+    print("Finished merging columns")
     # Filter out blocked recipes
     df_all = recipe_df
 
     # Exclude recipes that have not successfully parsed ingredients, if the schema contains that marker.
-    if 'ingredients_parsed' in df_all.columns:
-        try:
-            df_all = df_all[df_all['ingredients_parsed'] == True]
-        except Exception:
-            pass
+    # if 'ingredients_parsed' in df_all.columns:
+    #     try:
+    #         df_all = df_all[df_all['ingredients_parsed'] == True]
+    #     except Exception:
+    #         pass
 
     unblock_recipe_df = df_all
 
