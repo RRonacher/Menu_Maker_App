@@ -43,7 +43,7 @@ def get_all_recipes():
     for col in merge_cols:
         if col in recipe_df.columns:
             recipe_df[col] = pd.to_numeric(recipe_df[col], errors='coerce')
-    print("Finished merging columns")
+
     # Filter out blocked recipes
     df_all = recipe_df
 
