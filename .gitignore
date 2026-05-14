@@ -316,3 +316,9 @@ pytest.ini
 testing_plan.md
 
 roadmap.md
+
+# Project planning documents (epic markdowns)
+.planning/
+
+# Supabase SQL migration files
+supabase/

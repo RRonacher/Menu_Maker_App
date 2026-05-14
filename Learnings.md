@@ -105,3 +105,23 @@ USING (true);
 2. **Personal Recipe Library**: Can use `is_submitted_recipe` flag to distinguish user submissions
 3. **Bulk Imports**: Reuse `MacroValidator` for CSV imports to maintain data quality
 4. **Form Complexity**: If adding more fields, consider moving validation logic to backend-only (current approach has both client and server validation for UX + security)
+
+---
+
+## Project Organization
+
+### Issue 4: SQL Files and Planning Docs Belong in Dedicated Folders
+
+**Problem**: SQL schema files and epic planning markdowns were scattered at the project root, cluttering the directory and making it harder to distinguish source code from documentation.
+
+**Solution**: Organized into dedicated folders:
+- `.planning/` — Epic planning documents (EPIC5, EPIC6, etc.) — gitignored
+- `supabase/` — SQL schema migration files (supabase_aisle_schema.sql, supabase_recipe_ingredient_schema.sql) — gitignored
+
+**.gitignore entries added**:
+```
+.planning/
+supabase/
+```
+
+**Key Learning**: Plan documents are ephemeral artifacts that describe the development process, not the final product. SQL migration files are executed directly in Supabase, not by the app at runtime. Neither should be tracked in the repo. Keeps the root clean and focused on actual production code.
