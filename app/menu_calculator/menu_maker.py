@@ -55,6 +55,10 @@ def get_all_recipes():
     #         pass
 
     unblock_recipe_df = df_all
+    
+    # Gracefully handle empty database response (Supabase paused, network down)
+    if unblock_recipe_df.empty or 'title' not in unblock_recipe_df.columns:
+        return pd.DataFrame(columns=['title', 'calories', 'carbs', 'fat', 'protein', 'rating', 'review_count', 'url', 'category'])
 
     return unblock_recipe_df
 
@@ -110,6 +114,12 @@ def get_menu_with_recipes(menu, df):
     Returns:
         nutrition.Menu: Balanced menu object.
     """
+    # Gracefully handle empty recipe dataframe
+    if df.empty or len(df.index) == 0:
+        menu.recipes_df = pd.DataFrame(columns=['title', 'calories', 'carbs', 'fat', 'protein', 'keep'])
+        menu.balanced = False
+        return menu
+        
     counter = 0
     while not menu.balanced and counter < 1000:
         try:
@@ -130,7 +140,8 @@ def get_menu_with_recipes(menu, df):
         week_recipes = select_recipes(titles, recipe_indexes)
 
         new_df = df[df['title'].isin(week_recipes)].copy()
-        new_df.loc[:, 'keep'] = False
+        if not new_df.empty:
+            new_df.loc[:, 'keep'] = False
 
         try:
             menu.recipes_df = pd.concat([keep_df, new_df])

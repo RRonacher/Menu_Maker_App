@@ -244,8 +244,35 @@ def shopping_list():
 
     result = shopping.aggregate_shopping_list(recipe_inputs)
 
-    # Pass aggregated list and per-recipe breakdown to template
+    # Apply session-stored custom order if present
+    custom_order = session.get('shopping_list_order', [])
     aggregated = result.get('aggregated', {})
+    if custom_order and aggregated:
+        # Separate aisle headers and items
+        headers = [item for item in aggregated if item.get('type') == 'aisle_header']
+        items = [item for item in aggregated if item.get('type') == 'item']
+        # Build lookup from canonical to item
+        item_by_canon = {item['canonical']: item for item in items}
+        # Reorder items to match custom order; append any new items not yet ordered
+        reordered = []
+        seen = set()
+        for canon in custom_order:
+            if canon in item_by_canon:
+                reordered.append(item_by_canon[canon])
+                seen.add(canon)
+        for item in items:
+            if item['canonical'] not in seen:
+                reordered.append(item)
+        # Recalculate aisle headers from the reordered list
+        seen_aisles = set()
+        new_aggregated = []
+        for item in reordered:
+            if item['aisle'] not in seen_aisles:
+                seen_aisles.add(item['aisle'])
+                new_aggregated.append({'type': 'aisle_header', 'aisle': item['aisle']})
+            new_aggregated.append(item)
+        aggregated = new_aggregated
+
     per_recipe = result.get('per_recipe', [])
     return render_template('shopping_list.html', aggregated=aggregated, per_recipe=per_recipe)
 
@@ -254,3 +281,88 @@ def shopping_list():
 def shopping_alias():
     # Alias for standardized `/shopping` endpoint
     return shopping_list()
+
+
+@menu_bp.route('/reorder', methods=['POST'])
+def reorder():
+    """Move an aisle section up or down in the shopping list."""
+    aisle = request.form.get('aisle')
+    direction = request.form.get('direction')  # 'up' or 'down'
+
+    if not aisle or direction not in ('up', 'down'):
+        return redirect(url_for('menu.shopping_list'))
+
+    custom_order = session.get('shopping_list_aisle_order', [])
+    if aisle in custom_order:
+        idx = custom_order.index(aisle)
+        if direction == 'up' and idx > 0:
+            custom_order[idx], custom_order[idx - 1] = custom_order[idx - 1], custom_order[idx]
+        elif direction == 'down' and idx < len(custom_order) - 1:
+            custom_order[idx], custom_order[idx + 1] = custom_order[idx + 1], custom_order[idx]
+        session['shopping_list_aisle_order'] = custom_order
+    else:
+        # First time moving this aisle; seed full aisle order from defaults
+        last_menu = session.get('last_menu', []) or []
+        kept = [r for r in last_menu if r.get('keep')]
+        recipe_inputs = [{'title': r.get('title'), 'url': r.get('url'), 'ingredients': r.get('ingredients')} for r in kept]
+        result = shopping.aggregate_shopping_list(recipe_inputs)
+        seen_aisles = []
+        for item in result.get('aggregated', []):
+            if item.get('type') == 'aisle_header' and item['aisle'] not in seen_aisles:
+                seen_aisles.append(item['aisle'])
+        custom_order = seen_aisles
+        if aisle in custom_order:
+            idx = custom_order.index(aisle)
+            if direction == 'up' and idx > 0:
+                custom_order[idx], custom_order[idx - 1] = custom_order[idx - 1], custom_order[idx]
+            elif direction == 'down' and idx < len(custom_order) - 1:
+                custom_order[idx], custom_order[idx + 1] = custom_order[idx + 1], custom_order[idx]
+        session['shopping_list_aisle_order'] = custom_order
+
+    return redirect(url_for('menu.shopping_list'))
+
+
+@menu_bp.route('/correct_ingredient', methods=['POST'])
+def correct_ingredient():
+    """Save a manual ingredient correction."""
+    raw_text = request.form.get('raw_text')
+    canonical_text = request.form.get('canonical_text')
+
+    if not raw_text or not canonical_text:
+        flash('Missing required fields for correction.', 'error')
+        return redirect(url_for('menu.shopping_list'))
+
+    try:
+        from app.database import get_database
+        db = get_database()
+        if db.add_ingredient_correction(raw_text, canonical_text):
+            flash(f'Correction saved: "{raw_text}" → "{canonical_text}"', 'success')
+        else:
+            flash('Failed to save correction.', 'error')
+    except Exception as e:
+        flash(f'Error saving correction: {e}', 'error')
+
+    return redirect(url_for('menu.shopping_list'))
+
+
+@menu_bp.route('/assign_aisle', methods=['POST'])
+def assign_aisle():
+    """Reassign an ingredient to a different aisle."""
+    canonical_name = request.form.get('canonical_name')
+    aisle = request.form.get('aisle')
+
+    if not canonical_name or not aisle:
+        flash('Missing ingredient or aisle.', 'error')
+        return redirect(url_for('menu.shopping_list'))
+
+    try:
+        from app.database import get_database
+        db = get_database()
+        if db.upsert_aisle_assignment(canonical_name, aisle):
+            flash(f'Moved "{canonical_name}" to {aisle}', 'success')
+        else:
+            flash('Failed to save aisle assignment.', 'error')
+    except Exception as e:
+        flash(f'Error saving aisle assignment: {e}', 'error')
+
+    return redirect(url_for('menu.shopping_list'))

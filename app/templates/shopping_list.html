@@ -4,13 +4,54 @@
   <h2>Shopping List</h2>
   <p>The aggregated ingredients below are collected from recipes you've marked as <strong>Keep</strong>.</p>
 
-  <h4>Aggregated</h4>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show py-2 small" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <h4 class="mb-3">Aggregated</h4>
+
   {% if aggregated %}
-  <ul>
-    {% for item, count in aggregated.items() %}
-      <li>{{ item }} {% if count > 1 %} (used in {{ count }} recipes){% endif %}</li>
+  <div class="mb-3">
+    {% for item in aggregated %}
+      {% if item.type == 'aisle_header' %}
+        <h5 class="mt-3 mb-2 text-muted border-bottom pb-1">{{ item.aisle }}</h5>
+      {% else %}
+        <div class="d-flex justify-content-between align-items-center py-1 px-2 list-group-item-action">
+          <span>{{ item.display }}</span>
+          <div class="d-flex align-items-center gap-1">
+            <!-- Aisle reassign dropdown -->
+            <form method="post" action="{{ url_for('menu.assign_aisle') }}" class="d-inline aisle-form">
+              <input type="hidden" name="canonical_name" value="{{ item.canonical }}">
+              <select name="aisle" class="form-select form-select-sm aisle-select" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+                {% for aisle_option in ['Produce', 'Cheese', 'Meat', 'Spices', 'Canned', 'Dry Goods', 'Stocks and Dressings', 'Dairy', 'Frozen', 'Other'] %}
+                  <option value="{{ aisle_option }}" {% if item.aisle == aisle_option %}selected{% endif %}>{{ aisle_option }}</option>
+                {% endfor %}
+              </select>
+            </form>
+            <!-- Edit button for correction -->
+            <button class="btn btn-sm btn-outline-secondary correct-btn" data-item="{{ item.canonical }}">Edit</button>
+            <form method="post" action="{{ url_for('menu.correct_ingredient') }}" class="correct-form d-none ms-1" style="flex-shrink:0;">
+              <input type="hidden" name="raw_text" value="">
+              <div class="input-group input-group-sm">
+                <input type="text" name="canonical_text" class="form-control form-control-sm" placeholder="Correct name..." style="width:180px;" required>
+                <button type="submit" class="btn btn-sm btn-success">Save</button>
+                <button type="button" class="btn btn-sm btn-secondary cancel-correct">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      {% endif %}
     {% endfor %}
-  </ul>
+  </div>
   {% else %}
     <p>No ingredients found.</p>
   {% endif %}
@@ -35,4 +76,38 @@
 
   <a class="btn btn-secondary" href="{{ url_for('menu.menu') }}">Back to Menu</a>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    // Toggle edit forms on click
+    document.querySelectorAll('.correct-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const row = this.closest('.d-flex');
+        const form = row.querySelector('.correct-form');
+        const rawInput = form.querySelector('input[name="raw_text"]');
+        // Populate raw_text with the canonical key from data-item
+        const canon = this.getAttribute('data-item');
+        rawInput.value = canon;
+        // Pre-fill canonical with the canonical key
+        form.querySelector('input[name="canonical_text"]').value = canon;
+        // Toggle visibility
+        this.classList.add('d-none');
+        form.classList.remove('d-none');
+      });
+    });
+
+    // Cancel edit
+    document.querySelectorAll('.cancel-correct').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const form = this.closest('.correct-form');
+        const row = form.closest('.d-flex');
+        const editBtn = row.querySelector('.correct-btn');
+        form.classList.add('d-none');
+        editBtn.classList.remove('d-none');
+      });
+    });
+  });
+</script>
 {% endblock %}

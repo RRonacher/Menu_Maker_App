@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import re
 from fractions import Fraction
+from typing import Dict
 
 # map common unicode fractions to ascii forms
 _FRACTION_MAP = {
@@ -303,7 +304,10 @@ def _convert_quantity_unit_to_metric(qty_str: str, unit: str):
     # weight units -> grams
     WEIGHT_TO_G = {
         'g': Fraction(1),
+        'gram': Fraction(1),
+        'grams': Fraction(1),
         'kg': Fraction(1000),
+        'kilogram': Fraction(1000),
         'pound': Fraction(45359237, 100000),
         'lb': Fraction(45359237, 100000),
         'ounce': Fraction(283495, 10000),
@@ -429,7 +433,7 @@ def normalize_ingredient(text):
 
     # Try to capture a leading quantity + optional unit (keep as prefix)
     # Avoid matching single 'g' from 'garlic', 'ginger', etc. But do match if followed by non-letter or at end
-    qty_re = re.compile(r"^\s*((?:\d+\s*\d*/\d+|\d+/\d+|\d+(?:\.\d+)?)(?:\s*(?:to|-)\s*(?:\d+\s*\d*/\d+|\d+/\d+|\d+(?:\.\d+)?))?)\s*(cups?|tablespoons?|tbsp|teaspoons?|tsp|pounds?|lb|lbs|ounces?|oz|kg|grams?|g(?:\s|$)|ml|liters?|l|cloves?|cans?|packages?|pkg|slices?|bunch|stalk|pinch)?\s*(of)?\s*(.*)$",
+    qty_re = re.compile(r"^\s*((?:\d+\s*\d*/\d+|\d+/\d+|\d+(?:\.\d+)?)(?:\s*(?:to|-)\s*(?:\d+\s*\d*/\d+|\d+/\d+|\d+(?:\.\d+)?))?)\s*(cups?|tablespoons?|tbsp|teaspoons?|tsp|pounds?|lb|lbs|ounces?|oz|kg|grams?|g(?:\s|$)|ml|liters?|l(?:\s|$)|cloves?|cans?|packages?|pkg|slices?|bunch|stalk|pinch)?\s*(of)?\s*(.*)$",
                         re.I)
     m = qty_re.match(s)
     prefix = ''
@@ -648,7 +652,7 @@ def canonicalize_ingredient(text):
 # Reusable regex to extract a leading quantity + optional unit from a normalized string.
 # Named groups: qty, unit, body
 QTY_UNIT_RE = re.compile(
-    r"^\s*(?P<qty>(?:\d+\s+\d*/\d+|\d+/\d+|\d+(?:[.,]\d+)?)(?:\s*(?:to|-)\s*(?:\d+\s+\d*/\d+|\d+/\d+|\d+(?:[.,]\d+)?))?)\s*(?P<unit>cups?|tablespoons?|tablespoons?|tablespoon|tbsp|teaspoons?|tsp|pounds?|pound|lb|lbs|ounces?|ounce|oz|kg|kilogram|grams?|gram|g|ml|l|liters?|liter|cloves?|cans?|can|packages?|package|pkg|slices?|slice|bunch|stalk|pinch)?\b\s*(?P<body>.*)$",
+    r"^\s*(?P<qty>(?:\d+\s+\d*/\d+|\d+/\d+|\d+(?:[.,]\d+)?)(?:\s*(?:to|-)\s*(?:\d+\s+\d*/\d+|\d+/\d+|\d+(?:[.,]\d+)?))?)\s*(?P<unit>cups?|tablespoons?|tablespoons?|tablespoon|tbsp|teaspoons?|tsp|pounds?|pound|lb|lbs|ounces?|ounce|oz|kg|kilogram|grams?|gram|g|ml|l(?:\s|$)|liters?|liter|cloves?|cans?|can|packages?|package|pkg|slices?|slice|bunch|stalk|pinch)?\b\s*(?P<body>.*)$",
     re.I
 )
 
@@ -849,14 +853,139 @@ def scrape_ingredients_from_url(url, timeout=10):
     return _extract_from_html(soup)
 
 
+# Default aisle mapping for common ingredients. Database overrides this at runtime.
+DEFAULT_AISLE_MAP = {
+    # Produce
+    'onion': 'Produce', 'garlic': 'Produce', 'carrot': 'Produce', 'celery': 'Produce',
+    'bell pepper': 'Produce', 'pepper': 'Produce', 'tomato': 'Produce', 'potato': 'Produce',
+    'lemon': 'Produce', 'lime': 'Produce', 'broccoli': 'Produce', 'spinach': 'Produce',
+    'lettuce': 'Produce', 'kale': 'Produce', 'zucchini': 'Produce', 'mushroom': 'Produce',
+    'avocado': 'Produce', 'ginger': 'Produce', 'scallion': 'Produce', 'herb': 'Produce',
+    'cucumber': 'Produce', 'eggplant': 'Produce', 'sweet potato': 'Produce', 'squash': 'Produce',
+    'green bean': 'Produce', 'asparagus': 'Produce', 'cauliflower': 'Produce', 'cabbage': 'Produce',
+    'radish': 'Produce', 'jalapeno': 'Produce', 'parsley': 'Produce', 'cilantro': 'Produce',
+    'basil': 'Produce', 'mint': 'Produce', 'rosemary': 'Produce', 'thyme': 'Produce',
+    'banana': 'Produce', 'apple': 'Produce', 'berry': 'Produce', 'blueberry': 'Produce',
+    # Cheese
+    'parmesan': 'Cheese', 'cheddar': 'Cheese', 'mozzarella': 'Cheese', 'cheese': 'Cheese',
+    'cream cheese': 'Cheese', 'feta': 'Cheese', 'ricotta': 'Cheese', 'provolone': 'Cheese',
+    'swiss': 'Cheese', 'gouda': 'Cheese', 'goat cheese': 'Cheese', 'monterey jack': 'Cheese',
+    'mascarpone': 'Cheese',
+    # Meat
+    'chicken': 'Meat', 'beef': 'Meat', 'pork': 'Meat', 'bacon': 'Meat', 'sausage': 'Meat',
+    'turkey': 'Meat', 'ham': 'Meat', 'ground beef': 'Meat', 'steak': 'Meat', 'lamb': 'Meat',
+    'duck': 'Meat', 'ground pork': 'Meat', 'ground turkey': 'Meat', 'chorizo': 'Meat',
+    'salmon': 'Meat', 'fish': 'Meat', 'seafood': 'Meat', 'shrimp': 'Meat', 'tuna': 'Meat',
+    'crab': 'Meat', 'lobster': 'Meat', 'scallop': 'Meat', 'tilapia': 'Meat', 'cod': 'Meat',
+    # Spices
+    'salt': 'Spices', 'cinnamon': 'Spices', 'cumin': 'Spices', 'paprika': 'Spices',
+    'oregano': 'Spices', 'thyme': 'Spices',
+    'bay leaf': 'Spices', 'chili powder': 'Spices', 'turmeric': 'Spices',
+    'vanilla extract': 'Spices', 'vanilla': 'Spices', 'black pepper': 'Spices',
+    'red pepper flake': 'Spices', 'coriander': 'Spices', 'nutmeg': 'Spices',
+    'garlic powder': 'Spices', 'onion powder': 'Spices', 'italian seasoning': 'Spices',
+    # Canned
+    'canned tomato': 'Canned', 'canned bean': 'Canned', 'canned corn': 'Canned',
+    'canned chicken broth': 'Canned', 'canned coconut milk': 'Canned', 'canned tuna': 'Canned',
+    'canned pumpkin': 'Canned', 'canned broth': 'Canned', 'canned': 'Canned',
+    'water-packed': 'Canned', 'artichoke': 'Canned', 'canned artichoke': 'Canned',
+    # Dry Goods
+    'pasta': 'Dry Goods', 'rice': 'Dry Goods', 'flour': 'Dry Goods', 'sugar': 'Dry Goods',
+    'bread': 'Dry Goods', 'bread crumb': 'Dry Goods', 'oil': 'Dry Goods', 'olive oil': 'Dry Goods',
+    'vinegar': 'Dry Goods', 'soy sauce': 'Dry Goods', 'honey': 'Dry Goods', 'maple syrup': 'Dry Goods',
+    'baking powder': 'Dry Goods', 'baking soda': 'Dry Goods', 'cocoa powder': 'Dry Goods',
+    'chocolate': 'Dry Goods', 'chocolate chip': 'Dry Goods', 'oat': 'Dry Goods',
+    'nut': 'Dry Goods', 'almond': 'Dry Goods', 'peanut butter': 'Dry Goods', 'jam': 'Dry Goods',
+    'salsa': 'Dry Goods', 'tortilla': 'Dry Goods', 'chip': 'Dry Goods', 'taco seasoning': 'Dry Goods',
+    'rolled oat': 'Dry Goods', 'quick oat': 'Dry Goods', 'cereal': 'Dry Goods', 'cracker': 'Dry Goods',
+    'couscous': 'Dry Goods', 'quinoa': 'Dry Goods', 'lentil': 'Dry Goods', 'bean': 'Dry Goods',
+    'cornstarch': 'Dry Goods', 'brown sugar': 'Dry Goods', 'powdered sugar': 'Dry Goods',
+    'walnut': 'Dry Goods', 'pecan': 'Dry Goods', 'cashew': 'Dry Goods', 'peanut': 'Dry Goods',
+    # Stocks and Dressings
+    'chicken broth': 'Stocks and Dressings', 'beef broth': 'Stocks and Dressings',
+    'vegetable broth': 'Stocks and Dressings', 'broth': 'Stocks and Dressings',
+    'stock': 'Stocks and Dressings', 'vinaigrette': 'Stocks and Dressings',
+    'salad dressing': 'Stocks and Dressings', 'dressing': 'Stocks and Dressings',
+    'worcestershire sauce': 'Stocks and Dressings', 'hot sauce': 'Stocks and Dressings',
+    'fish sauce': 'Stocks and Dressings', 'sriracha': 'Stocks and Dressings',
+    # Dairy
+    'butter': 'Dairy', 'milk': 'Dairy', 'cream': 'Dairy', 'sour cream': 'Dairy',
+    'yogurt': 'Dairy', 'egg': 'Dairy', 'heavy cream': 'Dairy', 'half and half': 'Dairy',
+    'buttermilk': 'Dairy', 'whipped cream': 'Dairy', 'cream cheese': 'Dairy',
+    # Frozen
+    'frozen': 'Frozen', 'frozen vegetable': 'Frozen', 'frozen fruit': 'Frozen',
+    'frozen spinach': 'Frozen', 'frozen pea': 'Frozen', 'ice cream': 'Frozen',
+}
+
+AISLE_ORDER = [
+    'Produce', 'Cheese', 'Meat', 'Spices', 'Canned',
+    'Dry Goods', 'Stocks and Dressings', 'Dairy', 'Frozen', 'Other'
+]
+
+
+def _load_aisle_map() -> Dict[str, str]:
+    """Load aisle assignments from database, falling back to defaults."""
+    try:
+        from app.database import get_database
+        db = get_database()
+        db_map = db.get_all_aisle_assignments()
+        # Merge: database overrides defaults
+        merged = dict(DEFAULT_AISLE_MAP)
+        merged.update(db_map)
+        return merged
+    except Exception:
+        return dict(DEFAULT_AISLE_MAP)
+
+
+def _aisle_sort_key(item: dict) -> tuple:
+    """Return sort key for an aggregated item: (aisle_order, canonical_name)."""
+    aisle_lookup = _load_aisle_map()
+    canon = item.get('canonical', '')
+    # Find matching aisle by checking if canonical contains any mapped key
+    # Sort keys by length descending so "garlic powder" matches before "garlic"
+    aisle = 'Other'
+    for key, a in sorted(aisle_lookup.items(), key=lambda x: -len(x[0])):
+        if key in canon:
+            aisle = a
+            break
+    order = AISLE_ORDER.index(aisle) if aisle in AISLE_ORDER else 9
+    return (order, canon)
+
+
+def _load_correction_lookup():
+    """Load user corrections from the database, returning {raw_text: canonical_text}."""
+    try:
+        from app.database import get_database
+        db = get_database()
+        return db.get_all_ingredient_corrections()
+    except Exception:
+        return {}
+
+
+def _sum_quantity_metric(qty_str: str) -> float:
+    """Parse a quantity_metric string into a float for summing.
+    
+    Returns 0.0 if parsing fails.
+    """
+    if not qty_str:
+        return 0.0
+    try:
+        return float(qty_str)
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def aggregate_shopping_list(recipes):
     """
     recipes: list of dicts with keys 'title' and 'ingredients' (list) or 'url'
-    Returns: dict mapping ingredient text -> count/occurrences and list per recipe
+    Returns: dict with 'aggregated' (list of display items with quantities summed)
+             and 'per_recipe' (canonical names per recipe)
     """
-    # use module-level normalize_ingredient
+    # Load user corrections once for the entire aggregation
+    corrections = _load_correction_lookup()
 
-    agg = {}
+    # agg_groups: {canon_key: {'display': str, 'qty_sum': float, 'unit': str, 'count': int}}
+    agg_groups = {}
     per_recipe = []
     for r in recipes:
         title = r.get('title')
@@ -864,18 +993,101 @@ def aggregate_shopping_list(recipes):
         if not ingr_list and r.get('url'):
             ingr_list = scrape_ingredients_from_url(r.get('url'))
 
-        normalized = []
         canonical = []
         for item in ingr_list:
-            clean = normalize_ingredient(item)
-            if not clean:
+            parsed = normalize_ingredient_structured(item)
+            if not parsed or not parsed.get('normalized'):
                 continue
-            normalized.append(clean)
-            canon = canonicalize_ingredient(clean)
+            # Determine canonical key; user correction always wins
+            canon = parsed['canonical']
+            canon = corrections.get(canon, canon)
+
             canonical.append(canon)
-            agg.setdefault(canon, 0)
-            agg[canon] += 1
+
+            # Initialize group if needed
+            if canon not in agg_groups:
+                agg_groups[canon] = {
+                    'display': canon,
+                    'qty_sum': 0.0,
+                    'unit': None,
+                    'count': 0,
+                    'has_metric': False
+                }
+
+            group = agg_groups[canon]
+            group['count'] += 1
+
+            # Accumulate metric quantities if available and unit matches
+            qm = parsed.get('quantity_metric')
+            um = parsed.get('unit_metric')
+            if qm and um:
+                qty_val = _sum_quantity_metric(qm)
+                if group['unit'] is None:
+                    group['unit'] = um
+                    group['qty_sum'] = qty_val
+                    group['has_metric'] = True
+                elif group['unit'] == um:
+                    group['qty_sum'] += qty_val
+                else:
+                    # Mixed units — clear metric so we fall back to count display
+                    group['has_metric'] = False
 
         per_recipe.append({'title': title, 'ingredients': canonical})
 
-    return {'aggregated': agg, 'per_recipe': per_recipe}
+    # Build final display list from aggregated groups, sorted by aisle
+    aisle_lookup = _load_aisle_map()
+    
+    # Assign aisle to each item and create sortable list
+    items_with_aisle = []
+    for canon, group in agg_groups.items():
+        if group['has_metric'] and group['qty_sum'] > 0:
+            qty_display = _format_qty(group['qty_sum'])
+            display = f"{qty_display} {group['unit']} {canon}"
+        else:
+            display = canon
+        if group['count'] > 1:
+            display += f" (used in {group['count']} recipes)"
+        
+        # Determine aisle — sort keys by length descending so "garlic powder" matches before "garlic"
+        aisle = 'Other'
+        for key, a in sorted(aisle_lookup.items(), key=lambda x: -len(x[0])):
+            if key in canon:
+                aisle = a
+                break
+        aisle_order = AISLE_ORDER.index(aisle) if aisle in AISLE_ORDER else 9
+        
+        items_with_aisle.append({
+            'display': display,
+            'canonical': canon,
+            'aisle': aisle,
+            'aisle_order': aisle_order
+        })
+    
+    # Sort by aisle order, then alphabetically within each aisle
+    items_with_aisle.sort(key=lambda x: (x['aisle_order'], x['canonical']))
+    
+    # Insert aisle section headers
+    aggregated_items = []
+    seen_aisles = set()
+    for item in items_with_aisle:
+        if item['aisle'] not in seen_aisles:
+            seen_aisles.add(item['aisle'])
+            aggregated_items.append({
+                'type': 'aisle_header',
+                'aisle': item['aisle']
+            })
+        aggregated_items.append({
+            'type': 'item',
+            'display': item['display'],
+            'canonical': item['canonical'],
+            'aisle': item['aisle']
+        })
+
+    return {'aggregated': aggregated_items, 'per_recipe': per_recipe}
+
+
+def _format_qty(val: float) -> str:
+    """Format a summed quantity for display: strip .0 for whole numbers, round to 2 decimals."""
+    if val == int(val):
+        return str(int(val))
+    return str(round(val, 2))
