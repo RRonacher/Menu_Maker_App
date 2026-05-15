@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class SupabaseDatabase:
-    def __init__(self):
-        url = os.getenv('SUPABASE_URL')
-        key = os.getenv('SUPABASE_ANON_KEY')
+    def __init__(self, url: Optional[str] = None, key: Optional[str] = None):
+        url = url or os.getenv('SUPABASE_URL')
+        key = key or os.getenv('SUPABASE_ANON_KEY')
 
         if not url or not key:
             raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY environment variables must be set")
@@ -222,12 +222,24 @@ class SupabaseDatabase:
             print(f"Error bulk inserting recipes: {e}")
             return False
 
-# Global instance - initialize only when needed
+# Global instances - initialize only when needed
 _db_instance = None
+_service_db_instance = None
 
-def get_database() -> SupabaseDatabase:
-    """Get database instance, creating it if necessary."""
-    global _db_instance
+def get_database(service_role: bool = False) -> SupabaseDatabase:
+    """Get database instance, creating it if necessary.
+
+    When service_role=True, use the SUPABASE_SERVICE_ROLE_KEY for admin tasks.
+    """
+    global _db_instance, _service_db_instance
+    if service_role:
+        if _service_db_instance is None:
+            service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+            if not service_key:
+                raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable must be set for service role access")
+            _service_db_instance = SupabaseDatabase(key=service_key)
+        return _service_db_instance
+
     if _db_instance is None:
         _db_instance = SupabaseDatabase()
     return _db_instance
