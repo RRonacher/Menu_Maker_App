@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Custom Recipe View - Menu Maker</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Card-soft style (mimics app base) */
+    .card-soft {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border: 1px solid #e9ecef;
+    }
+    .bullet { color: #27ae60; margin-right: 8px; }
+    .ingredient-list li { font-size: 0.95rem; }
+    .instructions-text p { font-size: 0.95rem; line-height: 1.6; }
+    .badge { font-size: 0.75rem !important; }
+
+    /* Print stylesheet (matches recipe_view.html) */
+    @media print {
+      nav.navbar, footer, .btn, form, .btn-outline-secondary {
+        display: none !important;
+      }
+      .recipe-view-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .card-soft {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      .nutrition-summary {
+        background: #f8f9fa !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .badge {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      body {
+        font-size: 11pt;
+        line-height: 1.4;
+      }
+      h2 { font-size: 18pt; }
+      h5 { font-size: 13pt; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="#">Menu Maker</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navCollapse" aria-controls="navCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navCollapse">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="#">Menu Maker</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Recipe</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Nutrition</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Saved</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-4">
+    <div class="recipe-view-container mx-auto" style="max-width:720px;">
+      <div class="card-soft p-4">
+        <!-- Header with badge -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <h2 class="h3 mb-0">Test Family Chili</h2>
+          <span class="badge bg-success ms-2">My Recipe</span>
+        </div>
+
+        <!-- Edit / Delete buttons -->
+        <div class="mb-3">
+          <a href="#" class="btn btn-sm btn-outline-primary me-2">Edit</a>
+          <form style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </div>
+
+        <!-- Nutrition Summary -->
+        <div class="nutrition-summary bg-light rounded p-3 mb-4">
+          <h6 class="text-muted mb-2">Nutrition <span class="fw-normal text-muted">(per serving)</span></h6>
+          <div class="row text-center g-2">
+            <div class="col-3">
+              <div class="fw-bold">425</div>
+              <small class="text-muted">Calories</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold">35g</div>
+              <small class="text-muted">Carbs</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold">18g</div>
+              <small class="text-muted">Fat</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold">28g</div>
+              <small class="text-muted">Protein</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ingredients -->
+        <div class="mb-4">
+          <h5 class="mb-2">Ingredients</h5>
+          <ul class="list-unstyled ingredient-list">
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 1 tbsp olive oil</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 1 onion, diced</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 2 cloves garlic, minced</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 400 g ground beef</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 1 can diced tomatoes</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 2 tbsp chili powder</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> 1 can kidney beans, drained</li>
+            <li class="py-1 border-bottom border-light"><span class="bullet">&bull;</span> Salt to taste</li>
+          </ul>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mb-3">
+          <h5 class="mb-2">Instructions</h5>
+          <div class="instructions-text">
+            <p class="mb-1">1. Heat olive oil in a large pot over medium heat. Add diced onion and cook until softened, about 5 minutes. Add minced garlic and cook 1 minute more.</p>
+            <p class="mb-1">2. Add ground beef and cook until browned, breaking it apart with a spoon. Drain excess fat.</p>
+            <p class="mb-1">3. Stir in diced tomatoes, chili powder, and kidney beans. Bring to a simmer.</p>
+            <p class="mb-1">4. Reduce heat and simmer for 20 minutes, stirring occasionally. Season with salt to taste.</p>
+            <p class="mb-1">5. Serve hot with your choice of toppings.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-3">
+        <a href="#" class="btn btn-outline-secondary">&larr; Back to Menu</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-light py-3 mt-auto">
+    <div class="container text-center small text-muted">&copy; Menu Maker</div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
