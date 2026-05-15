@@ -739,6 +739,17 @@ def parse_recipe_ingredients(url, timeout=10):
     return build_ingredient_rows(raw_ingredients)
 
 
+def parse_raw_ingredients(raw_text: str):
+    """Parse ingredients from raw text (one per line) instead of scraping a URL.
+    
+    Splits on newlines, strips whitespace, and filters out empty lines.
+    """
+    if not raw_text or not isinstance(raw_text, str):
+        return []
+    lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+    return build_ingredient_rows(lines)
+
+
 def _extract_json_ld(soup):
     scripts = soup.find_all('script', type='application/ld+json')
     for s in scripts:

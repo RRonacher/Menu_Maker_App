@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ recipe.title }} - Menu Maker{% endblock %}
+
+{% block content %}
+  <div class="card-soft mx-auto" style="max-width:760px;">
+    <h2 class="h4">Edit Recipe</h2>
+    <p class="text-muted small">Editing: <strong>{{ recipe.title }}</strong></p>
+    
+    <form method="post" class="mt-4" autocomplete="off">
+      <div class="mb-3">
+        <label for="title" class="form-label">Recipe Title*</label>
+        <input type="text" class="form-control" id="title" name="title" value="{{ recipe.title }}" required>
+      </div>
+      
+      <div class="mb-3">
+        <label for="ingredients" class="form-label">Ingredients*</label>
+        <textarea class="form-control" id="ingredients" name="ingredients" rows="8" required>{{ ingredients_raw }}</textarea>
+        <div class="form-text text-muted mt-1">
+          <small>Enter ingredients for <strong>1 serving</strong>, one per line.</small>
+        </div>
+        <div id="ingredientValidation" class="mt-1" style="display:none;"></div>
+      </div>
+      
+      <div class="mb-3">
+        <label for="instructions" class="form-label">Instructions <span class="text-muted">(optional)</span></label>
+        <textarea class="form-control" id="instructions" name="instructions" rows="6">{{ instructions }}</textarea>
+      </div>
+      
+      <h6 class="text-muted mb-3">Nutritional Information (per serving)</h6>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6 col-lg-3">
+          <label for="calories" class="form-label">Calories*</label>
+          <input type="text" inputmode="numeric" class="form-control" id="calories" name="calories" pattern="[0-9]+" value="{{ recipe.calories }}" required>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+          <label for="carbs" class="form-label">Carbs (g)*</label>
+          <input type="text" class="form-control" id="carbs" name="carbs" pattern="[0-9]*\.?[0-9]*" value="{{ recipe.carbs }}" required>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+          <label for="protein" class="form-label">Protein (g)*</label>
+          <input type="text" class="form-control" id="protein" name="protein" pattern="[0-9]*\.?[0-9]*" value="{{ recipe.protein }}" required>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+          <label for="fat" class="form-label">Fat (g)*</label>
+          <input type="text" class="form-control" id="fat" name="fat" pattern="[0-9]*\.?[0-9]*" value="{{ recipe.fat }}" required>
+        </div>
+      </div>
+      
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('recipe.view_recipe', recipe_id=recipe.PK) }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.querySelector('form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    async function validateIngredients(rawText) {
+      if (!rawText.trim()) return { valid: false, error: 'Please enter at least one ingredient.' };
+      try {
+        const formData = new FormData();
+        formData.append('ingredients', rawText);
+        const response = await fetch('{{ url_for("recipe.validate_ingredients") }}', {
+          method: 'POST',
+          body: formData
+        });
+        return await response.json();
+      } catch (e) {
+        return { valid: false, error: 'Could not validate ingredients.' };
+      }
+    }
+    
+    form.addEventListener('submit', async function(e) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+      
+      const intFields = ['calories'];
+      const floatFields = ['carbs', 'protein', 'fat'];
+      let valid = true;
+
+      intFields.forEach(field => {
+        const value = document.getElementById(field).value.trim();
+        if (!/^\d+$/.test(value) || parseInt(value, 10) <= 0) {
+          valid = false;
+          alert(`${field.charAt(0).toUpperCase() + field.slice(1)} must be a positive integer`);
+        }
+      });
+
+      floatFields.forEach(field => {
+        const value = document.getElementById(field).value.trim();
+        if (!/^\d+(?:\.\d+)?$/.test(value) || parseFloat(value) <= 0) {
+          valid = false;
+          alert(`${field.charAt(0).toUpperCase() + field.slice(1)} must be a positive number`);
+        }
+      });
+      
+      // Validate ingredients
+      const ingredients = document.getElementById('ingredients').value.trim();
+      if (!ingredients) {
+        valid = false;
+        alert('Please enter at least one ingredient.');
+      } else {
+        const validation = await validateIngredients(ingredients);
+        const validationEl = document.getElementById('ingredientValidation');
+        if (!validation.valid) {
+          valid = false;
+          validationEl.style.display = 'block';
+          validationEl.className = 'alert alert-danger mt-1 py-2 small';
+          validationEl.textContent = validation.error;
+          e.preventDefault();
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Save Changes';
+          return;
+        } else {
+          validationEl.style.display = 'none';
+        }
+      }
+      
+      if (!valid) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+        e.preventDefault();
+      }
+    });
+  </script>
+{% endblock %}

@@ -4,6 +4,8 @@ from app.utils.helpers import select_recipes
 from app.menu_calculator.menu_maker import get_all_recipes, make_menu, get_menu_with_recipes, recipes_needed
 from app.menu_calculator import nutrition as menu_nutrition
 from app.utils import shopping
+from app.database import get_database
+import logging
 
 menu_bp = Blueprint('menu', __name__, url_prefix='/menu')
 
@@ -89,12 +91,18 @@ def menu():
                 except Exception:
                     ingredients = []
 
+                # Determine if this is a custom recipe (no external URL)
+                recipe_type = str(row.get('recipe_type', 'scraped'))
+                recipe_pk = row.get('PK') or row.get('id') or None
+
                 menu_recipes.append({
                     'title': str(row.get('title', '')),
                     'keep': bool(row.get('keep', False)),
                     'url': str(row.get('url', '')),
                     'nutrition': nutrition_info,
-                    'ingredients': ingredients
+                    'ingredients': ingredients,
+                    'recipe_type': recipe_type,
+                    'recipe_id': str(recipe_pk) if recipe_pk else None
                 })
         # Save the generated menu to session so future toggles won't require regenerating
         # Ensure we never store None in the session; store empty list instead.
@@ -173,6 +181,10 @@ def replace():
         return redirect(url_for('menu.menu'))
 
     new_row = new_row.iloc[0]
+    # Determine recipe_type and PK for the replacement
+    replace_recipe_type = str(new_row.get('recipe_type', 'scraped'))
+    replace_pk = new_row.get('PK') or new_row.get('id') or None
+
     new_item = {
         'title': str(new_row.get('title', '')),
         'keep': False,
@@ -183,7 +195,9 @@ def replace():
             'Carbs': float(new_row.get('carbs', 0.0)) if new_row.get('carbs', '') != '' else 0.0,
             'Fat': float(new_row.get('fat', 0.0)) if new_row.get('fat', '') != '' else 0.0,
             'Protein': float(new_row.get('protein', 0.0)) if new_row.get('protein', '') != '' else 0.0
-        }
+        },
+        'recipe_type': replace_recipe_type,
+        'recipe_id': str(replace_pk) if replace_pk else None
     }
     # populate ingredients from df row if available
     try:

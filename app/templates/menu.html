@@ -29,7 +29,7 @@
           <tr>
             <th>Title</th>
             <th>Keep</th>
-            <th>Url</th>
+            <th>Link</th>
             <th>Nutrition</th>
           </tr>
         </thead>
@@ -45,7 +45,16 @@
                 <button type="submit" class="keep-btn">{{ 'Yes' if recipe.keep else 'No' }}</button>
               </form>
             </td>
-            <td><a href="{{ recipe.url }}" target="_blank">Link</a></td>
+            <td>
+              {% if recipe.recipe_type == 'custom' and recipe.recipe_id %}
+                <a href="{{ url_for('recipe.view_recipe', recipe_id=recipe.recipe_id) }}" target="_blank">Link</a>
+                <span class="badge bg-success ms-1" style="font-size:0.6rem;">My Recipe</span>
+              {% elif recipe.url %}
+                <a href="{{ recipe.url }}" target="_blank">Link</a>
+              {% else %}
+                <span class="text-muted small">No URL</span>
+              {% endif %}
+            </td>
             <td>
               <span class="nutrition-tooltip">
                 <span class="info-icon">&#9432;</span>

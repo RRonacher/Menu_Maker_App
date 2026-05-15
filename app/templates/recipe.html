@@ -5,20 +5,56 @@
 {% block content %}
   <div class="card-soft mx-auto" style="max-width:760px;">
     <h2 class="h4">Recipe Form</h2>
+    
+    <!-- Recipe type toggle -->
+    {% set selected_type = form_data.recipe_type if form_data else 'submitted' %}
+    <div class="mb-3 mt-3">
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="recipe_type_selector" id="typeScraped" value="scraped" {{ 'checked' if selected_type != 'custom' else '' }}>
+        <label class="form-check-label" for="typeScraped">This is from a website</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="recipe_type_selector" id="typeCustom" value="custom" {{ 'checked' if selected_type == 'custom' else '' }}>
+        <label class="form-check-label" for="typeCustom">This is my own recipe</label>
+      </div>
+    </div>
+
     <form method="post" class="mt-4" autocomplete="off">
+      <input type="hidden" name="recipe_type" id="recipeTypeInput" value="submitted">
+
       <div class="mb-3">
         <label for="title" class="form-label">Recipe Title*</label>
         <input type="text" class="form-control" id="title" name="title" value="{{ form_data.title if form_data else '' }}" required>
       </div>
       
-      <div class="mb-3">
-        <label for="url" class="form-label">Recipe URL*</label>
-        <input type="url" class="form-control" id="url" name="url" value="{{ form_data.url if form_data else '' }}" required>
+      <!-- Scraped mode fields -->
+      <div id="scrapedFields">
+        <div class="mb-3">
+          <label for="url" class="form-label">Recipe URL*</label>
+          <input type="url" class="form-control" id="url" name="url" value="{{ form_data.url if form_data else '' }}" required>
+        </div>
+        
+        <div class="mb-3">
+          <label for="source" class="form-label">Source*</label>
+          <input type="text" class="form-control" id="source" name="source" value="{{ form_data.source if form_data else '' }}" required>
+        </div>
       </div>
       
-      <div class="mb-3">
-        <label for="source" class="form-label">Source*</label>
-        <input type="text" class="form-control" id="source" name="source" value="{{ form_data.source if form_data else '' }}" required>
+      <!-- Custom mode fields (hidden by default) -->
+      <div id="customFields" style="display:none;">
+        <div class="mb-3">
+          <label for="ingredients" class="form-label">Ingredients*</label>
+          <textarea class="form-control" id="ingredients" name="ingredients" rows="8" placeholder="1 cup flour&#10;2 tbsp olive oil&#10;1 clove garlic, minced&#10;Salt to taste">{{ form_data.ingredients if form_data else '' }}</textarea>
+          <div class="form-text text-muted mt-1">
+            <small>Enter ingredients for <strong>1 serving</strong>, one per line. We'll scale automatically.</small>
+          </div>
+          <div id="ingredientValidation" class="mt-1" style="display:none;"></div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="instructions" class="form-label">Instructions <span class="text-muted">(optional)</span></label>
+          <textarea class="form-control" id="instructions" name="instructions" rows="6" placeholder="1. Preheat oven to 350°F...">{{ form_data.instructions if form_data else '' }}</textarea>
+        </div>
       </div>
       
       <h6 class="text-muted mb-3">Nutritional Information (per serving)</h6>
@@ -52,15 +88,64 @@
   </div>
   
   <script>
-      // Basic client-side validation
+    // Recipe type toggle
+    const typeScraped = document.getElementById('typeScraped');
+    const typeCustom = document.getElementById('typeCustom');
+    const recipeTypeInput = document.getElementById('recipeTypeInput');
+    const scrapedFields = document.getElementById('scrapedFields');
+    const customFields = document.getElementById('customFields');
+    
+    function toggleRecipeType() {
+      if (typeCustom.checked) {
+        recipeTypeInput.value = 'custom';
+        scrapedFields.style.display = 'none';
+        customFields.style.display = 'block';
+        // Remove required from scraped fields
+        document.getElementById('url').required = false;
+        document.getElementById('source').required = false;
+      } else {
+        recipeTypeInput.value = 'submitted';
+        scrapedFields.style.display = 'block';
+        customFields.style.display = 'none';
+        // Re-add required to scraped fields
+        document.getElementById('url').required = true;
+        document.getElementById('source').required = true;
+      }
+    }
+    
+    typeScraped.addEventListener('change', toggleRecipeType);
+    typeCustom.addEventListener('change', toggleRecipeType);
+    
+    // Initialize based on pre-checked state
+    toggleRecipeType();
+    
+    // Basic client-side validation
     const form = document.querySelector('form');
     const submitBtn = document.getElementById('submitBtn');
     
-    form.addEventListener('submit', function(e) {
+    // Client-side ingredient validation for custom recipes
+    async function validateIngredients(rawText) {
+      if (!rawText.trim()) return { valid: false, error: 'Please enter at least one ingredient.' };
+      
+      try {
+        const formData = new FormData();
+        formData.append('ingredients', rawText);
+        const response = await fetch('{{ url_for("recipe.validate_ingredients") }}', {
+          method: 'POST',
+          body: formData
+        });
+        return await response.json();
+      } catch (e) {
+        return { valid: false, error: 'Could not validate ingredients. Please try again.' };
+      }
+    }
+    
+    form.addEventListener('submit', async function(e) {
       // Disable submit button immediately to prevent double-submission
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
       
+      const isCustom = typeCustom.checked;
       const intFields = ['calories'];
       const floatFields = ['carbs', 'protein', 'fat'];
       let valid = true;
@@ -81,18 +166,51 @@
         }
       });
       
-      let url = document.getElementById('url').value.trim();
-      // Add https:// if no protocol is specified
-      if (!/^https?:\/\//i.test(url)) {
-        url = 'https://' + url;
-      }
-      try {
-        const urlObj = new URL(url);
-        // Update the form value with potentially added protocol
-        document.getElementById('url').value = url;
-      } catch {
-        valid = false;
-        alert('Please enter a valid URL (e.g., www.example.com or https://example.com)');
+      if (!isCustom) {
+        // Validate URL for scraped mode
+        let url = document.getElementById('url').value.trim();
+        // Add https:// if no protocol is specified
+        if (!/^https?:\/\//i.test(url)) {
+          url = 'https://' + url;
+        }
+        try {
+          const urlObj = new URL(url);
+          // Update the form value with potentially added protocol
+          document.getElementById('url').value = url;
+        } catch {
+          valid = false;
+          alert('Please enter a valid URL (e.g., www.example.com or https://example.com)');
+        }
+      } else {
+        // Validate ingredients for custom mode
+        const ingredients = document.getElementById('ingredients').value.trim();
+        if (!ingredients) {
+          valid = false;
+          alert('Please enter at least one ingredient.');
+        } else {
+          // Quick client-side check: at least one non-empty line
+          const lines = ingredients.split('\n').filter(l => l.trim());
+          if (lines.length === 0) {
+            valid = false;
+            alert('Please enter at least one ingredient.');
+          } else {
+            // Server-side validation via AJAX
+            const validation = await validateIngredients(ingredients);
+            const validationEl = document.getElementById('ingredientValidation');
+            if (!validation.valid) {
+              valid = false;
+              validationEl.style.display = 'block';
+              validationEl.className = 'alert alert-danger mt-1 py-2 small';
+              validationEl.textContent = validation.error;
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit Recipe';
+              e.preventDefault();
+              return;
+            } else {
+              validationEl.style.display = 'none';
+            }
+          }
+        }
       }
       
       if (valid) {
